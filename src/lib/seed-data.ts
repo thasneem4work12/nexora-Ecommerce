@@ -1,0 +1,240 @@
+import type { ProductItem } from "@/types";
+
+export const INITIAL_PRODUCTS: ProductItem[] = [
+  {
+    id: "prod_01",
+    title: "Double-Breasted Cashmere Trench",
+    slug: "double-breasted-cashmere-trench",
+    description:
+      "Meticulously tailored from 100% Mongolian combed cashmere. Features horn buttons, belted waist silhouette, structured storm flap, and silk-cupro lining. Designed for discerning cold-weather elegance.",
+    category: "Apparel",
+    basePriceInCents: 145000, // $1,450.00
+    featured: true,
+    images: [
+      "https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=1000",
+    ],
+    variants: [
+      {
+        id: "var_01_camel_s",
+        productId: "prod_01",
+        sku: "NEX-CT-CML-S",
+        title: "Camel / Small",
+        size: "S",
+        color: "Camel",
+        priceInCents: 145000,
+        stock: 5,
+        available: true,
+      },
+      {
+        id: "var_01_camel_m",
+        productId: "prod_01",
+        sku: "NEX-CT-CML-M",
+        title: "Camel / Medium",
+        size: "M",
+        color: "Camel",
+        priceInCents: 145000,
+        stock: 8,
+        available: true,
+      },
+      {
+        id: "var_01_camel_l",
+        productId: "prod_01",
+        sku: "NEX-CT-CML-L",
+        title: "Camel / Large",
+        size: "L",
+        color: "Camel",
+        priceInCents: 145000,
+        stock: 2,
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "prod_02",
+    title: "Hand-Welted Wholecut Calfskin Oxfords",
+    slug: "hand-welted-wholecut-calfskin-oxfords",
+    description:
+      "Crafted from a single piece of flawless French box calf leather. Goodyear welted by master cordwainers with bark-tanned leather soles and beveled waists.",
+    category: "Footwear",
+    basePriceInCents: 68000, // $680.00
+    featured: true,
+    images: [
+      "https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1533867617858-e7b97e060509?auto=format&fit=crop&q=80&w=1000",
+    ],
+    variants: [
+      {
+        id: "var_02_blk_41",
+        productId: "prod_02",
+        sku: "NEX-OX-BLK-41",
+        title: "Obsidian Black / EU 41",
+        size: "EU 41",
+        color: "Obsidian Black",
+        priceInCents: 68000,
+        stock: 4,
+        available: true,
+      },
+      {
+        id: "var_02_blk_42",
+        productId: "prod_02",
+        sku: "NEX-OX-BLK-42",
+        title: "Obsidian Black / EU 42",
+        size: "EU 42",
+        color: "Obsidian Black",
+        priceInCents: 68000,
+        stock: 6,
+        available: true,
+      },
+      {
+        id: "var_02_blk_43",
+        productId: "prod_02",
+        sku: "NEX-OX-BLK-43",
+        title: "Obsidian Black / EU 43",
+        size: "EU 43",
+        color: "Obsidian Black",
+        priceInCents: 68000,
+        stock: 3,
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "prod_03",
+    title: "Artisanal Tuscan Bridle Leather Briefcase",
+    slug: "artisanal-tuscan-bridle-leather-briefcase",
+    description:
+      "Vegetable-tanned full-grain leather hand-dyed in Florence. Finished with solid brass hardware, padded laptop partition, and reinforced saddle stitching.",
+    category: "Accessories",
+    basePriceInCents: 92000, // $920.00
+    featured: true,
+    images: [
+      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&q=80&w=1000",
+      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&q=80&w=1000",
+    ],
+    variants: [
+      {
+        id: "var_03_cognac",
+        productId: "prod_03",
+        sku: "NEX-BC-CGN-OS",
+        title: "Cognac Brown / One Size",
+        size: "One Size",
+        color: "Cognac Brown",
+        priceInCents: 92000,
+        stock: 7,
+        available: true,
+      },
+      {
+        id: "var_03_espresso",
+        productId: "prod_03",
+        sku: "NEX-BC-ESP-OS",
+        title: "Deep Espresso / One Size",
+        size: "One Size",
+        color: "Deep Espresso",
+        priceInCents: 92000,
+        stock: 4,
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "prod_04",
+    title: "Mulberry Silk Twill Atelier Scarf",
+    slug: "mulberry-silk-twill-atelier-scarf",
+    description:
+      "Printed on 18-momme pure mulberry silk with hand-rolled edges. Depicts architectural geometry inspired by classic European colonnades.",
+    category: "Accessories",
+    basePriceInCents: 24000, // $240.00
+    featured: false,
+    images: [
+      "https://images.unsplash.com/photo-1601924994987-69e26d50dc26?auto=format&fit=crop&q=80&w=1000",
+    ],
+    variants: [
+      {
+        id: "var_04_navy_gold",
+        productId: "prod_04",
+        sku: "NEX-SC-NVG-OS",
+        title: "Navy & Bronze / 90x90cm",
+        size: "90x90cm",
+        color: "Navy / Bronze",
+        priceInCents: 24000,
+        stock: 12,
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "prod_05",
+    title: "Structured Virgin Wool Blazer",
+    slug: "structured-virgin-wool-blazer",
+    description:
+      "Full canvas construction using Super 150s virgin wool from Biella, Italy. Half-lined with mother-of-pearl buttons and hand-sewn pick stitching.",
+    category: "Apparel",
+    basePriceInCents: 110000, // $1,100.00
+    featured: true,
+    images: [
+      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=1000",
+    ],
+    variants: [
+      {
+        id: "var_05_charcoal_38",
+        productId: "prod_05",
+        sku: "NEX-BZ-CHR-38",
+        title: "Charcoal Melange / US 38",
+        size: "US 38",
+        color: "Charcoal",
+        priceInCents: 110000,
+        stock: 3,
+        available: true,
+      },
+      {
+        id: "var_05_charcoal_40",
+        productId: "prod_05",
+        sku: "NEX-BZ-CHR-40",
+        title: "Charcoal Melange / US 40",
+        size: "US 40",
+        color: "Charcoal",
+        priceInCents: 110000,
+        stock: 5,
+        available: true,
+      },
+    ],
+  },
+  {
+    id: "prod_06",
+    title: "Burnished Calf Leather Chelsea Boots",
+    slug: "burnished-calf-leather-chelsea-boots",
+    description:
+      "Hand-antiqued Italian calfskin with elasticated gussets and Goodyear welt construction. Equipped with studded rubber soles for all-weather traction.",
+    category: "Footwear",
+    basePriceInCents: 59000, // $590.00
+    featured: false,
+    images: [
+      "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?auto=format&fit=crop&q=80&w=1000",
+    ],
+    variants: [
+      {
+        id: "var_06_chestnut_42",
+        productId: "prod_06",
+        sku: "NEX-CH-CSH-42",
+        title: "Chestnut Brown / EU 42",
+        size: "EU 42",
+        color: "Chestnut",
+        priceInCents: 59000,
+        stock: 6,
+        available: true,
+      },
+      {
+        id: "var_06_chestnut_43",
+        productId: "prod_06",
+        sku: "NEX-CH-CSH-43",
+        title: "Chestnut Brown / EU 43",
+        size: "EU 43",
+        color: "Chestnut",
+        priceInCents: 59000,
+        stock: 4,
+        available: true,
+      },
+    ],
+  },
+];
