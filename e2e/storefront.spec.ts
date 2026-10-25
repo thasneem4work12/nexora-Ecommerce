@@ -34,6 +34,7 @@ test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
     // Reset to All Works
     const allWorksBtn = page.getByRole("button", { name: /All Works/i });
     await allWorksBtn.click();
+    await expect(page).toHaveURL(/.*products$/);
 
     // Search for "briefcase"
     const searchInput = page.getByPlaceholder(/Search by tailoring/i);

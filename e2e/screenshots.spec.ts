@@ -56,6 +56,32 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.goto("/login", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "07-login-desktop.png") });
 
+    // Authenticate as Owner for Phase 3 Admin Screenshots
+    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.getByRole("button", { name: /Authenticate/i }).click();
+    await page.waitForURL(/.*account/, { timeout: 10000 });
+
+    // 10: Admin Dashboard Overview
+    await page.goto("/admin", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "10-admin-dashboard-overview.png") });
+
+    // 11: Admin Products List
+    await page.goto("/admin/products", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "11-admin-products-list.png") });
+
+    // 12: Admin Product Editor / Creation
+    await page.goto("/admin/products/new", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "12-admin-product-editor.png") });
+
+    // 13: Admin Inventory Stock Control
+    await page.goto("/admin/inventory", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "13-admin-inventory-stock.png") });
+
+    // 14: Admin Inventory Audit Ledger
+    await page.goto("/admin/inventory/movements", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "14-admin-inventory-audit-ledger.png") });
+
     await desktopContext.close();
 
     // 2. Mobile context

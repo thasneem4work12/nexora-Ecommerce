@@ -94,7 +94,15 @@ export default function AccountPage() {
           </p>
         </div>
 
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex items-center space-x-3">
+          {(user as { role?: string }).role &&
+            (user as { role?: string }).role !== "CUSTOMER" && (
+              <Link href="/admin">
+                <Button variant="primary" size="sm" className="flex items-center">
+                  <Shield className="w-4 h-4 mr-2" /> Atelier Admin
+                </Button>
+              </Link>
+            )}
           <Button
             variant="outline"
             size="sm"

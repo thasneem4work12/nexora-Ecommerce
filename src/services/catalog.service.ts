@@ -67,7 +67,9 @@ export async function getPublishedProducts(
   const limit = Math.min(100, Math.max(1, filter.limit ?? 12));
   const skip = (page - 1) * limit;
 
-  const where: Prisma.ProductWhereInput = {};
+  const where: Prisma.ProductWhereInput = {
+    isArchived: false,
+  };
 
   // Security: only show published products unless explicitly specified by authorized context
   if (!filter.includeUnpublished) {
@@ -150,7 +152,7 @@ export async function getProductBySlug(
   slug: string,
   options: { includeUnpublished?: boolean } = {}
 ): Promise<ProductItem | null> {
-  const where: Prisma.ProductWhereInput = { slug };
+  const where: Prisma.ProductWhereInput = { slug, isArchived: false };
 
   if (!options.includeUnpublished) {
     where.published = true;
@@ -202,6 +204,7 @@ export async function getRelatedProducts(
   const products = await prisma.product.findMany({
     where: {
       published: true,
+      isArchived: false,
       id: { not: productId },
       OR: [
         { category: { equals: category, mode: "insensitive" } },

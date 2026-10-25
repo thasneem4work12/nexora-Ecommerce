@@ -28,9 +28,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions      Session[]
-  accounts      Account[]
-  carts         Cart[]
+  sessions           Session[]
+  accounts           Account[]
+  carts              Cart[]
+  inventoryMovements InventoryMovement[]
 
   @@map("users")
 }
@@ -106,6 +107,8 @@ model Product {
   basePriceInCents Int
   featured         Boolean          @default(false)
   published        Boolean          @default(true)
+  isArchived       Boolean          @default(false)
+  archivedAt       DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -116,6 +119,8 @@ model Product {
   @@index([categoryId])
   @@index([published])
   @@index([featured])
+  @@index([isArchived])
+  @@index([isArchived, published])
   @@index([published, featured])
   @@index([published, category])
   @@index([basePriceInCents])
@@ -123,24 +128,27 @@ model Product {
 }
 
 model ProductVariant {
-  id                String      @id @default(cuid())
-  productId         String
-  sku               String      @unique
-  title             String
-  size              String?
-  color             String?
-  priceInCents      Int
-  stock             Int         @default(0)
-  lowStockThreshold Int         @default(5)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id                 String              @id @default(cuid())
+  productId          String
+  sku                String              @unique
+  title              String
+  size               String?
+  color              String?
+  priceInCents       Int
+  stock              Int                 @default(0)
+  lowStockThreshold  Int                 @default(5)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
-  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems         CartItem[]
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems          CartItem[]
+  inventoryMovements InventoryMovement[]
 
   @@index([productId])
   @@index([priceInCents])
   @@index([stock])
+  @@index([isActive])
   @@map("product_variants")
 }
 
@@ -185,3 +193,36 @@ model CartItem {
   @@unique([cartId, variantId])
   @@map("cart_items")
 }
+
+enum InventoryMovementType {
+  RESTOCK
+  ADJUSTMENT
+  DAMAGED
+  RETURN
+  MANUAL_CORRECTION
+  RESERVATION
+  RELEASE
+}
+
+model InventoryMovement {
+  id             String                 @id @default(cuid())
+  variantId      String
+  quantityChange Int
+  previousStock  Int
+  newStock       Int
+  type           InventoryMovementType  @default(MANUAL_CORRECTION)
+  reason         String?                @db.Text
+  reference      String?
+  userId         String?
+  createdAt      DateTime               @default(now())
+
+  variant        ProductVariant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  user           User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([variantId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("inventory_movements")
+}
+
