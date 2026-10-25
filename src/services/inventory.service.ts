@@ -31,6 +31,10 @@ export async function adjustStock(input: StockAdjustmentInput) {
   }
 
   return await prisma.$transaction(async (tx) => {
+    // Concurrency safety: acquire exclusive PostgreSQL row-level lock on the variant.
+    // Serializes concurrent requests on the same variant and prevents race conditions.
+    await tx.$queryRaw`SELECT id FROM "product_variants" WHERE id = ${input.variantId} FOR UPDATE`;
+
     // 1. Fetch variant with current stock
     const variant = await tx.productVariant.findUnique({
       where: { id: input.variantId },

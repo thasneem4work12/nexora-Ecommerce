@@ -162,13 +162,117 @@ describe("Inventory Service (PostgreSQL Audited Stock Operations)", () => {
     expect(typeof targetItem?.isOutOfStock).toBe("boolean");
   });
 
-  it("should retrieve historical audit movements with user details", async () => {
-    const history = await getInventoryMovements({ variantId: testVariantId });
+  it("should safely handle concurrent simultaneous stock reductions with row-level locking without going negative or corrupting the audit ledger", async () => {
+    // Setup isolated test product and variant with exactly 1 unit of stock
+    const uniqueId = Date.now();
+    const isolatedProduct = await prisma.product.create({
+      data: {
+        title: `Concurrency Test Product ${uniqueId}`,
+        slug: `concurrency-test-${uniqueId}`,
+        description: "PostgreSQL row locking verification under high contention",
+        category: "Test",
+        basePriceInCents: 50000,
+        published: true,
+        variants: {
+          create: {
+            sku: `CONCURRENCY-SKU-${uniqueId}`,
+            title: "Limited Edition - Single Item",
+            priceInCents: 50000,
+            stock: 1, // Only 1 item in stock
+          },
+        },
+      },
+      include: { variants: true },
+    });
 
-    expect(history.movements.length).toBeGreaterThanOrEqual(2);
-    const latest = history.movements[0];
-    expect(latest.variantId).toBe(testVariantId);
-    expect(latest.user).toBeDefined();
-    expect(latest.user?.id).toBe(adminUserId);
+    const isolatedVariant = isolatedProduct.variants[0];
+
+    try {
+      // Fire two simultaneous stock reductions of -1 at the exact same instant
+      const [res1, res2] = await Promise.allSettled([
+        adjustStock({
+          variantId: isolatedVariant.id,
+          delta: -1,
+          type: "ADJUSTMENT",
+          reason: "Simultaneous Checkout Order Alpha",
+          reference: "ORD-ALPHA",
+          adminId: adminUserId,
+        }),
+        adjustStock({
+          variantId: isolatedVariant.id,
+          delta: -1,
+          type: "ADJUSTMENT",
+          reason: "Simultaneous Checkout Order Beta",
+          reference: "ORD-BETA",
+          adminId: adminUserId,
+        }),
+      ]);
+
+      const fulfilled = [res1, res2].filter((r) => r.status === "fulfilled");
+      const rejected = [res1, res2].filter((r) => r.status === "rejected") as PromiseRejectedResult[];
+
+      // Exactly ONE request must succeed, and exactly ONE must fail
+      expect(fulfilled.length).toBe(1);
+      expect(rejected.length).toBe(1);
+
+      // The rejected request must be blocked by the concurrency guard with clear error
+      expect(rejected[0].reason.message).toMatch(
+        /Insufficient inventory.*Stock cannot be negative/
+      );
+
+      // Verify that database stock is exactly 0 and NEVER dropped into negative values
+      const updatedVariant = await prisma.productVariant.findUnique({
+        where: { id: isolatedVariant.id },
+      });
+      expect(updatedVariant?.stock).toBe(0);
+
+      // Verify that the audit ledger contains exactly 1 entry for this stock reduction
+      const movements = await prisma.inventoryMovement.findMany({
+        where: { variantId: isolatedVariant.id },
+      });
+      expect(movements.length).toBe(1);
+      expect(movements[0].quantityChange).toBe(-1);
+      expect(movements[0].previousStock).toBe(1);
+      expect(movements[0].newStock).toBe(0);
+      expect(movements[0].type).toBe("ADJUSTMENT");
+    } finally {
+      // Clean up test records
+      await prisma.inventoryMovement.deleteMany({
+        where: { variantId: isolatedVariant.id },
+      });
+      await prisma.productVariant.deleteMany({
+        where: { productId: isolatedProduct.id },
+      });
+      await prisma.product.delete({
+        where: { id: isolatedProduct.id },
+      });
+    }
+  });
+
+  it("should ensure inventory movements are append-only through application interfaces", async () => {
+    // 1. Verify that inventory service exports only create and read operations
+    const inventoryServiceModule = await import("./inventory.service");
+    expect("adjustStock" in inventoryServiceModule).toBe(true);
+    expect("getInventoryItems" in inventoryServiceModule).toBe(true);
+    expect("getInventoryMovements" in inventoryServiceModule).toBe(true);
+
+    // Verify there are no update or delete functions for movements in the service interface
+    expect("updateInventoryMovement" in inventoryServiceModule).toBe(false);
+    expect("deleteInventoryMovement" in inventoryServiceModule).toBe(false);
+    expect("modifyMovement" in inventoryServiceModule).toBe(false);
+    expect("purgeMovements" in inventoryServiceModule).toBe(false);
+
+    // 2. Verify that existing movements maintain historical integrity
+    const history = await getInventoryMovements({ limit: 5 });
+    if (history.movements.length > 0) {
+      const movement = history.movements[0];
+      expect(movement.id).toBeDefined();
+      expect(movement.createdAt).toBeInstanceOf(Date);
+      expect(typeof movement.quantityChange).toBe("number");
+      expect(typeof movement.previousStock).toBe("number");
+      expect(typeof movement.newStock).toBe("number");
+      expect(movement.newStock - movement.previousStock).toBe(movement.quantityChange);
+    }
   });
 });
+

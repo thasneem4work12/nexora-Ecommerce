@@ -1,11 +1,37 @@
-import { describe, it, expect } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 import {
   ROLE_HIERARCHY,
   PERMISSIONS,
   hasPermission,
   AuthError,
+  requireAdminApi,
   type Permission,
 } from "./admin-auth";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn().mockResolvedValue(new Headers()),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  auth: {
+    api: {
+      getSession: vi.fn(),
+    },
+  },
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(),
+    },
+    session: {
+      findUnique: vi.fn(),
+    },
+  },
+}));
 
 describe("Admin Authorization & RBAC Matrix", () => {
   it("should have correct role hierarchy ordering", () => {
@@ -90,3 +116,167 @@ describe("Admin Authorization & RBAC Matrix", () => {
     expect(err403.status).toBe(403);
   });
 });
+
+import type { Role, User, Session } from "@prisma/client";
+
+describe("requireAdminApi Server Guard Enforcement", () => {
+  const futureExpiry = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+  function mockActiveSession(role: Role) {
+    const mockUser: User = {
+      id: `usr-${role.toLowerCase()}-1`,
+      email: `${role.toLowerCase()}@nexoracommerce.com`,
+      name: `${role} Test User`,
+      emailVerified: true,
+      image: null,
+      role,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockSession: Session = {
+      id: `sess-${role.toLowerCase()}-1`,
+      userId: mockUser.id,
+      token: "mock-token",
+      expiresAt: futureExpiry,
+      ipAddress: "127.0.0.1",
+      userAgent: "Vitest",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(auth.api.getSession).mockResolvedValue({
+      user: mockUser,
+      session: mockSession,
+    } as unknown as Awaited<ReturnType<typeof auth.api.getSession>>);
+
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser);
+    vi.mocked(prisma.session.findUnique).mockResolvedValue(mockSession);
+
+    return { mockUser, mockSession };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should reject unauthenticated requests with HTTP 401", async () => {
+    vi.mocked(auth.api.getSession).mockResolvedValue(null);
+
+    await expect(requireAdminApi("VIEW_ADMIN")).rejects.toThrowError(
+      new AuthError("Authentication required. Please sign in.", 401)
+    );
+  });
+
+  it("should reject expired sessions with HTTP 401", async () => {
+    const expiredDate = new Date(Date.now() - 10000);
+    const mockUser: User = {
+      id: "u-expired-1",
+      name: "Owner User",
+      email: "owner@nexora.com",
+      emailVerified: true,
+      image: null,
+      role: "OWNER",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const mockExpiredSession: Session = {
+      id: "s-expired-1",
+      userId: "u-expired-1",
+      token: "expired-tok",
+      expiresAt: expiredDate,
+      ipAddress: null,
+      userAgent: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    vi.mocked(auth.api.getSession).mockResolvedValue({
+      user: mockUser,
+      session: mockExpiredSession,
+    } as unknown as Awaited<ReturnType<typeof auth.api.getSession>>);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser);
+    vi.mocked(prisma.session.findUnique).mockResolvedValue(mockExpiredSession);
+
+    await expect(requireAdminApi("VIEW_ADMIN")).rejects.toThrowError(
+      new AuthError("Authentication required. Please sign in.", 401)
+    );
+  });
+
+  it("should strictly reject CUSTOMER accounts with HTTP 403 on any admin endpoint", async () => {
+    mockActiveSession("CUSTOMER");
+
+    await expect(requireAdminApi("VIEW_ADMIN")).rejects.toThrowError(
+      new AuthError("Access denied: Customer accounts do not have administrative privileges.", 403)
+    );
+
+    await expect(requireAdminApi("VIEW_PRODUCTS")).rejects.toThrowError(
+      new AuthError("Access denied: Customer accounts do not have administrative privileges.", 403)
+    );
+
+    await expect(requireAdminApi("ADJUST_INVENTORY")).rejects.toThrowError(
+      new AuthError("Access denied: Customer accounts do not have administrative privileges.", 403)
+    );
+  });
+
+  it("should enforce STAFF role limits: allow operational tasks, deny management mutations", async () => {
+    mockActiveSession("STAFF");
+
+    // Permitted for STAFF
+    const allowed = await requireAdminApi("VIEW_ADMIN");
+    expect(allowed.user.role).toBe("STAFF");
+
+    const allowedInv = await requireAdminApi("ADJUST_INVENTORY");
+    expect(allowedInv.user.role).toBe("STAFF");
+
+    // Prohibited for STAFF -> must reject with HTTP 403
+    await expect(requireAdminApi("CREATE_PRODUCT")).rejects.toThrowError(
+      new AuthError("Access denied: Your role (STAFF) does not have permission for 'CREATE_PRODUCT'.", 403)
+    );
+
+    await expect(requireAdminApi("ARCHIVE_PRODUCT")).rejects.toThrowError(
+      new AuthError("Access denied: Your role (STAFF) does not have permission for 'ARCHIVE_PRODUCT'.", 403)
+    );
+
+    await expect(requireAdminApi("MANAGE_CATEGORIES")).rejects.toThrowError(
+      new AuthError("Access denied: Your role (STAFF) does not have permission for 'MANAGE_CATEGORIES'.", 403)
+    );
+
+    await expect(requireAdminApi("VIEW_AUDIT_LOGS")).rejects.toThrowError(
+      new AuthError("Access denied: Your role (STAFF) does not have permission for 'VIEW_AUDIT_LOGS'.", 403)
+    );
+  });
+
+  it("should enforce MANAGER role limits: allow product creation, deny product archiving", async () => {
+    mockActiveSession("MANAGER");
+
+    // Permitted for MANAGER
+    const allowed = await requireAdminApi("CREATE_PRODUCT");
+    expect(allowed.user.role).toBe("MANAGER");
+
+    const allowedCats = await requireAdminApi("MANAGE_CATEGORIES");
+    expect(allowedCats.user.role).toBe("MANAGER");
+
+    const allowedLogs = await requireAdminApi("VIEW_AUDIT_LOGS");
+    expect(allowedLogs.user.role).toBe("MANAGER");
+
+    // Prohibited for MANAGER -> must reject with HTTP 403
+    await expect(requireAdminApi("ARCHIVE_PRODUCT")).rejects.toThrowError(
+      new AuthError("Access denied: Your role (MANAGER) does not have permission for 'ARCHIVE_PRODUCT'.", 403)
+    );
+
+    await expect(requireAdminApi("MANAGE_SETTINGS")).rejects.toThrowError(
+      new AuthError("Access denied: Your role (MANAGER) does not have permission for 'MANAGE_SETTINGS'.", 403)
+    );
+  });
+
+  it("should allow OWNER access to all permissions including destructive actions", async () => {
+    mockActiveSession("OWNER");
+
+    const allowedArchive = await requireAdminApi("ARCHIVE_PRODUCT");
+    expect(allowedArchive.user.role).toBe("OWNER");
+
+    const allowedSettings = await requireAdminApi("MANAGE_SETTINGS");
+    expect(allowedSettings.user.role).toBe("OWNER");
+  });
+});
+
