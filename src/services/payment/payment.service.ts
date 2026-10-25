@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { confirmReservations } from "@/services/reservation.service";
+import { confirmReservations, releaseReservations } from "@/services/reservation.service";
 import type { PaymentProvider, PaymentSessionResult } from "./payment-provider.interface";
 import { MockPaymentProvider } from "./mock-payment.provider";
 import { PayHerePaymentProvider } from "./payhere-payment.provider";
@@ -197,8 +197,39 @@ export async function processPaymentWebhook(
       },
     });
 
+    // 6. Security Check: Order ID matching
+    if (order.id !== event.orderId) {
+      throw new Error(
+        `Payment Security Violation: Order ID mismatch (expected ${order.id}, got ${event.orderId})`
+      );
+    }
+
+    // 7. Security Check: Amount matching (minor units)
+    if (typeof event.amountInCents === "number" && event.amountInCents > 0) {
+      if (event.amountInCents !== order.totalInCents) {
+        console.error(
+          `[Payment Security Alert] Amount mismatch on order ${order.orderNumber}: expected ${order.totalInCents} cents, received ${event.amountInCents} cents`
+        );
+        throw new Error(
+          `Payment amount mismatch: expected ${order.totalInCents} minor units, received ${event.amountInCents}.`
+        );
+      }
+    }
+
+    // 8. Security Check: Currency matching
+    if (event.currency) {
+      if (event.currency.trim().toUpperCase() !== order.currency.trim().toUpperCase()) {
+        console.error(
+          `[Payment Security Alert] Currency mismatch on order ${order.orderNumber}: expected ${order.currency}, received ${event.currency}`
+        );
+        throw new Error(
+          `Payment currency mismatch: expected ${order.currency}, received ${event.currency}.`
+        );
+      }
+    }
+
     if (event.status === "PAID") {
-      // If already paid, preserve idempotency
+      // If already paid, preserve idempotency without modifying stock
       if (order.paymentStatus === "PAID") {
         return {
           success: true,
@@ -210,7 +241,123 @@ export async function processPaymentWebhook(
         };
       }
 
-      // Update payment record
+      // Handle late payment arriving after reservation expiration or order cancellation
+      if (order.status === "CANCELLED") {
+        const orderItems = await tx.orderItem.findMany({
+          where: { orderId: order.id },
+        });
+
+        let allStockAvailable = true;
+        for (const item of orderItems) {
+          if (!item.variantId) continue;
+          await tx.$queryRaw`SELECT id FROM "product_variants" WHERE id = ${item.variantId} FOR UPDATE`;
+          const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } });
+          if (!variant || variant.stock < item.quantity) {
+            allStockAvailable = false;
+            break;
+          }
+        }
+
+        if (!allStockAvailable) {
+          // Stock was already claimed during the expired window. Do NOT oversell!
+          if (paymentRecord) {
+            await tx.payment.update({
+              where: { id: paymentRecord.id },
+              data: {
+                status: "PAID",
+                paidAt: new Date(),
+                paymentMethod: event.paymentMethod || "CARD",
+                cardBrand: event.cardBrand || null,
+                cardLast4: event.cardLast4 || null,
+                errorMessage: "Late payment arrived after reservation expired and variant stock was sold out. Refund required.",
+              },
+            });
+          }
+
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              paymentStatus: "PAID",
+              notes: `${order.notes ? `${order.notes}\n` : ""}[Payment Alert ${new Date().toISOString()}]: Payment of ${event.amountInCents} cents received after reservation expired, but piece is OUT OF STOCK. Order remains CANCELLED. Manual refund required.`,
+            },
+          });
+
+          return {
+            success: true,
+            duplicate: false,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            status: "FAILED",
+            message: "Payment received after reservation expired, but inventory is out of stock. Order remains cancelled pending refund.",
+          };
+        }
+
+        // Stock IS still available: Re-allocate inventory and confirm order
+        for (const item of orderItems) {
+          if (!item.variantId) continue;
+          const variant = await tx.productVariant.findUnique({ where: { id: item.variantId } });
+          if (variant) {
+            const previousStock = variant.stock;
+            const newStock = previousStock - item.quantity;
+            await tx.productVariant.update({
+              where: { id: variant.id },
+              data: { stock: newStock },
+            });
+            await tx.inventoryMovement.create({
+              data: {
+                variantId: variant.id,
+                quantityChange: -item.quantity,
+                previousStock,
+                newStock,
+                type: "RESERVATION",
+                reason: `Late payment inventory re-allocation for Order ${order.orderNumber}`,
+                reference: order.id,
+              },
+            });
+          }
+        }
+
+        await tx.stockReservation.updateMany({
+          where: { orderId: order.id },
+          data: { status: "CONFIRMED", confirmedAt: new Date() },
+        });
+
+        if (paymentRecord) {
+          await tx.payment.update({
+            where: { id: paymentRecord.id },
+            data: {
+              status: "PAID",
+              paidAt: new Date(),
+              paymentMethod: event.paymentMethod || "CARD",
+              cardBrand: event.cardBrand || null,
+              cardLast4: event.cardLast4 || null,
+            },
+          });
+        }
+
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            paymentStatus: "PAID",
+            status: "PAID",
+            paidAt: new Date(),
+            cancelReason: null,
+            cancelledAt: null,
+            notes: `${order.notes ? `${order.notes}\n` : ""}[Audit Notice ${new Date().toISOString()}]: Order was previously cancelled/expired, but payment settled and stock was safely re-allocated.`,
+          },
+        });
+
+        return {
+          success: true,
+          duplicate: false,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          status: "PAID",
+          message: `Order ${order.orderNumber} recovered and stock re-allocated.`,
+        };
+      }
+
+      // Standard checkout payment confirmation
       if (paymentRecord) {
         await tx.payment.update({
           where: { id: paymentRecord.id },
@@ -224,7 +371,7 @@ export async function processPaymentWebhook(
         });
       }
 
-      // Update order to PAID and transition status to PAID/PROCESSING
+      // Update order to PAID and transition status to PAID
       await tx.order.update({
         where: { id: order.id },
         data: {
@@ -256,10 +403,16 @@ export async function processPaymentWebhook(
         });
       }
 
+      // Release reserved stock immediately so inventory is not locked up
+      await releaseReservations(order.id, "Payment declined via provider webhook", tx);
+
       await tx.order.update({
         where: { id: order.id },
         data: {
           paymentStatus: "FAILED",
+          status: "CANCELLED",
+          cancelReason: event.errorMessage || "Payment declined by provider.",
+          cancelledAt: new Date(),
         },
       });
 
@@ -269,7 +422,7 @@ export async function processPaymentWebhook(
         orderId: order.id,
         orderNumber: order.orderNumber,
         status: "FAILED",
-        message: `Payment failed for order ${order.orderNumber}.`,
+        message: `Payment failed for order ${order.orderNumber}. Stock reservation released.`,
       };
     }
 

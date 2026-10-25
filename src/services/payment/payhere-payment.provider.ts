@@ -110,7 +110,8 @@ export class PayHerePaymentProvider implements PaymentProvider {
 
   async verifyWebhookSignature(payload: string): Promise<boolean> {
     const secret = this.getMerchantSecret();
-    if (!secret) return false;
+    const expectedMerchantId = this.getMerchantId();
+    if (!secret || !expectedMerchantId) return false;
 
     try {
       // PayHere sends urlencoded or json form data
@@ -127,7 +128,25 @@ export class PayHerePaymentProvider implements PaymentProvider {
         md5sig,
       } = data;
 
-      if (!merchant_id || !order_id || !payhere_amount || !payhere_currency || !status_code || !md5sig) {
+      // Ensure all mandatory verification fields exist
+      if (
+        !merchant_id ||
+        !order_id ||
+        !payhere_amount ||
+        !payhere_currency ||
+        status_code === undefined ||
+        status_code === null ||
+        String(status_code).trim() === "" ||
+        !md5sig
+      ) {
+        return false;
+      }
+
+      // Security check: Merchant ID must match our configured store merchant ID
+      if (String(merchant_id).trim() !== expectedMerchantId.trim()) {
+        console.error(
+          `[PayHere Security Alert] Merchant ID mismatch: received ${merchant_id}, expected ${expectedMerchantId}`
+        );
         return false;
       }
 
@@ -144,7 +163,7 @@ export class PayHerePaymentProvider implements PaymentProvider {
         .digest("hex")
         .toUpperCase();
 
-      return localMd5sig === String(md5sig).toUpperCase();
+      return localMd5sig === String(md5sig).trim().toUpperCase();
     } catch {
       return false;
     }
@@ -155,16 +174,39 @@ export class PayHerePaymentProvider implements PaymentProvider {
       ? JSON.parse(payload)
       : Object.fromEntries(new URLSearchParams(payload));
 
-    const statusCode = parseInt(data.status_code, 10);
-    let status: "PAID" | "FAILED" | "PENDING" = "FAILED";
+    if (!data.order_id || String(data.order_id).trim() === "") {
+      throw new Error("Malformed PayHere payload: missing order_id.");
+    }
 
+    if (data.status_code === undefined || data.status_code === null || String(data.status_code).trim() === "") {
+      throw new Error("Malformed PayHere payload: missing status_code.");
+    }
+
+    const statusCode = parseInt(String(data.status_code), 10);
+    if (isNaN(statusCode)) {
+      throw new Error(`Malformed PayHere payload: invalid status_code "${data.status_code}".`);
+    }
+
+    let status: "PAID" | "FAILED" | "PENDING";
     if (statusCode === 2) {
       status = "PAID";
     } else if (statusCode === 0) {
       status = "PENDING";
+    } else {
+      // Status -1 (Canceled), -2 (Failed), -3 (Chargedback), etc.
+      status = "FAILED";
     }
 
-    const amountInCents = Math.round(parseFloat(data.payhere_amount || "0") * 100);
+    const parsedAmount = parseFloat(String(data.payhere_amount || ""));
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      throw new Error(`Malformed PayHere payload: invalid payhere_amount "${data.payhere_amount}".`);
+    }
+    const amountInCents = Math.round(parsedAmount * 100);
+
+    const currency = String(data.payhere_currency || "").trim().toUpperCase();
+    if (!currency) {
+      throw new Error("Malformed PayHere payload: missing payhere_currency.");
+    }
 
     // Card details (never stores raw sensitive card data)
     let cardLast4: string | undefined;
@@ -177,15 +219,15 @@ export class PayHerePaymentProvider implements PaymentProvider {
       provider: this.id,
       eventId: data.payment_id || `payhere_evt_${Date.now()}`,
       eventType: statusCode === 2 ? "payhere.payment.success" : "payhere.payment.failed",
-      orderId: data.order_id,
+      orderId: String(data.order_id).trim(),
       providerPaymentId: data.payment_id || `payhere_pay_${Date.now()}`,
       status,
       amountInCents,
-      currency: data.payhere_currency || "LKR",
+      currency,
       paymentMethod: data.method || "CARD",
       cardBrand: data.method,
       cardLast4,
-      errorMessage: statusCode !== 2 ? data.status_message : undefined,
+      errorMessage: statusCode !== 2 ? (data.status_message || `Payment unconfirmed with status_code ${statusCode}`) : undefined,
       rawPayload: payload,
     };
   }

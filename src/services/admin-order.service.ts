@@ -132,10 +132,27 @@ export async function updateAdminOrderStatus(
       throw new Error(`Order not found: ${orderId}`);
     }
 
-    // Security Guard: Do not allow manual status change that falsely marks an unpaid order as paid
+    // Security Guard: Prevent invalid order and payment state transitions
+    const fulfillmentStatuses: OrderStatus[] = ["PROCESSING", "SHIPPED", "DELIVERED"];
+
+    // 1. Prevent advancing cancelled orders to fulfillment
+    if (order.status === "CANCELLED" && (fulfillmentStatuses.includes(newStatus) || newStatus === "PAID")) {
+      throw new Error(
+        `Invalid order transition: Cancelled order ${order.orderNumber} cannot be moved to "${newStatus}". Inventory was already released.`
+      );
+    }
+
+    // 2. Prevent manually marking unpaid orders as PAID
     if (newStatus === "PAID" && order.paymentStatus !== "PAID") {
       throw new Error(
         "Unauthorized: Orders cannot be manually marked as PAID without a verified payment gateway transaction."
+      );
+    }
+
+    // 3. Prevent advancing unpaid or failed orders to fulfillment
+    if (fulfillmentStatuses.includes(newStatus) && order.paymentStatus !== "PAID") {
+      throw new Error(
+        `Invalid order transition: Order ${order.orderNumber} cannot be advanced to "${newStatus}" because payment status is "${order.paymentStatus}".`
       );
     }
 
@@ -188,6 +205,18 @@ export async function updateOrderShipment(
 
     if (!order) {
       throw new Error(`Order not found: ${orderId}`);
+    }
+
+    if (order.paymentStatus !== "PAID") {
+      throw new Error(
+        `Cannot dispatch shipment for order ${order.orderNumber}: Payment is unverified (status: "${order.paymentStatus}").`
+      );
+    }
+
+    if (order.status === "CANCELLED") {
+      throw new Error(
+        `Cannot dispatch shipment for cancelled order ${order.orderNumber}.`
+      );
     }
 
     const existingShipment = order.shipments[0];

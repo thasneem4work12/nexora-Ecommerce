@@ -64,7 +64,10 @@ export class MockPaymentProvider implements PaymentProvider {
       return false;
     }
 
-    if (signature === "simulate_dev_client") {
+    if (
+      (process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_PAYMENT === "true") &&
+      signature === "simulate_dev_client"
+    ) {
       return true;
     }
 
@@ -82,6 +85,10 @@ export class MockPaymentProvider implements PaymentProvider {
   async parseWebhookEvent(payload: string): Promise<PaymentWebhookEvent> {
     this.assertEnvironment();
     const data = JSON.parse(payload);
+
+    if (!data.orderId) {
+      throw new Error("Missing orderId in mock payment webhook.");
+    }
 
     return {
       provider: this.id,

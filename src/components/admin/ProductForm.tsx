@@ -256,7 +256,7 @@ export function ProductForm({
           title: v.title.trim(),
           size: v.size.trim() || null,
           color: v.color.trim() || null,
-          priceInCents: Math.round(v.price * 100),
+          priceInCents: Math.round((v.price > 0 ? v.price : basePrice) * 100),
           stock: v.stock,
           lowStockThreshold: v.lowStockThreshold,
           isActive: v.isActive,
