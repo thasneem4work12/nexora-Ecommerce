@@ -13,6 +13,8 @@ export function Header() {
   const { cart, openCart } = useCart();
   const { data: session } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const navLinks = [
     { href: "/products", label: "Catalog" },
@@ -78,14 +80,47 @@ export function Header() {
           </nav>
 
           {/* Right Action Icons */}
-          <div className="flex items-center space-x-4 sm:space-x-6">
-            <Link
-              href="/products"
-              className="p-2 text-charcoal-700 hover:text-bronze transition-colors hidden sm:block"
-              aria-label="Search Catalog"
-            >
-              <Search className="w-5 h-5" />
-            </Link>
+          <div className="flex items-center space-x-3 sm:space-x-5">
+            {/* Search Toggle */}
+            <div className="relative flex items-center">
+              {searchOpen ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (searchQuery.trim()) {
+                      window.location.href = `/products?search=${encodeURIComponent(searchQuery.trim())}`;
+                      setSearchOpen(false);
+                    }
+                  }}
+                  className="flex items-center"
+                >
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search catalog..."
+                    autoFocus
+                    className="w-36 sm:w-56 px-3 py-1.5 bg-canvas-surface border border-border-default text-xs tracking-wider text-charcoal-900 focus:outline-none focus:border-bronze"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(false)}
+                    className="p-1.5 text-charcoal-400 hover:text-charcoal-900"
+                    aria-label="Close search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <button
+                  onClick={() => setSearchOpen(true)}
+                  className="p-2 text-charcoal-700 hover:text-bronze transition-colors"
+                  aria-label="Search Catalog"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+              )}
+            </div>
 
             {/* User Account / Auth */}
             {session?.user ? (

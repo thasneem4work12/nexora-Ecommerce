@@ -27,20 +27,44 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setValidationError(null);
 
-    // Mock order placement for Phase 1 (server transaction and payments integrated in Phase 4)
-    setTimeout(() => {
+    try {
+      // Authoritative server-side inventory and price check against PostgreSQL
+      const response = await fetch("/api/cart/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: cart.items }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success || !data.isValid) {
+        const errorMsg =
+          data.issues?.[0]?.message ||
+          "One or more pieces in your shopping bag are no longer available in the requested quantity.";
+        setValidationError(errorMsg);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Order commission accepted (mock transaction prior to Phase 4 real payment gateway)
       setIsSubmitting(false);
       setIsCompleted(true);
       clearCart();
-    }, 1200);
+    } catch {
+      setValidationError("Failed to communicate with the atelier inventory server. Please try again.");
+      setIsSubmitting(false);
+    }
   };
 
   if (isCompleted) {
@@ -226,15 +250,22 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Payment Verification / Phase 1 Notice */}
+            {/* Payment Verification / Phase 2 Notice */}
             <div className="bg-canvas-surface border border-border-default p-6 sm:p-8 space-y-4">
               <div className="flex items-center space-x-2 text-sm uppercase tracking-luxury text-charcoal-900 font-semibold pb-3 border-b border-border-subtle">
                 <Lock className="w-4 h-4 text-bronze" />
                 <span>3. Payment Guarantee</span>
               </div>
               <p className="text-xs text-charcoal-500 leading-relaxed">
-                Phase 1 Development Mode: Orders are verified and registered in staging mode. Live credit card processing (Stripe / approved gateway) will be activated in Phase 4.
+                Phase 2 Demonstration Mode: Every commission order authoritatively validates variant stock and pricing in PostgreSQL before acceptance. Live payment gateway integration (Stripe / approved provider) will be introduced in Phase 4.
               </p>
+
+              {validationError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs">
+                  {validationError}
+                </div>
+              )}
+
               <Button
                 type="submit"
                 variant="primary"

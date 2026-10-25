@@ -1,47 +1,43 @@
-"use client";
-
-import React, { useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { INITIAL_PRODUCTS } from "@/lib/seed-data";
+import React, { Suspense } from "react";
+import Link from "next/link";
+import { getPublishedProducts, getCategories } from "@/services/catalog.service";
 import { ProductCard } from "@/components/product/ProductCard";
-import { cn } from "@/lib/utils";
+import { CatalogToolbar } from "@/components/product/CatalogToolbar";
+import type { ProductSortOption } from "@/types";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
-const CATEGORIES = [
-  { id: "all", label: "All Works" },
-  { id: "apparel", label: "Apparel" },
-  { id: "footwear", label: "Footwear" },
-  { id: "accessories", label: "Accessories" },
-];
+interface ProductsPageProps {
+  searchParams: Promise<{
+    category?: string;
+    search?: string;
+    sort?: string;
+    page?: string;
+  }>;
+}
 
-function ProductsPageContent() {
-  const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("category") || "all";
-  
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory.toLowerCase());
-  const [sortBy, setSortBy] = useState<"featured" | "price-asc" | "price-desc">("featured");
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
+  const resolvedParams = await searchParams;
+  const currentCategory = resolvedParams.category || "all";
+  const currentSearch = resolvedParams.search || "";
+  const currentSort = (resolvedParams.sort as ProductSortOption) || "featured";
+  const currentPage = resolvedParams.page ? parseInt(resolvedParams.page, 10) : 1;
 
-  const filteredProducts = useMemo(() => {
-    let result = [...INITIAL_PRODUCTS];
-
-    if (selectedCategory !== "all") {
-      result = result.filter(
-        (p) => p.category.toLowerCase() === selectedCategory
-      );
-    }
-
-    if (sortBy === "price-asc") {
-      result.sort((a, b) => a.basePriceInCents - b.basePriceInCents);
-    } else if (sortBy === "price-desc") {
-      result.sort((a, b) => b.basePriceInCents - a.basePriceInCents);
-    }
-
-    return result;
-  }, [selectedCategory, sortBy]);
+  const [categories, { products, pagination }] = await Promise.all([
+    getCategories(),
+    getPublishedProducts({
+      category: currentCategory,
+      search: currentSearch,
+      sort: currentSort,
+      page: isNaN(currentPage) ? 1 : currentPage,
+      limit: 9, // Luxury 9-item grid
+      includeUnpublished: false, // Customer security
+    }),
+  ]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
       {/* Page Header */}
-      <div className="border-b border-border-default pb-8 mb-10">
+      <div className="border-b border-border-default pb-8 mb-8">
         <span className="text-xs uppercase tracking-luxury text-bronze font-semibold">
           The House Catalog
         </span>
@@ -52,86 +48,94 @@ function ProductsPageContent() {
           Explore our limited collection of made-to-order garments, bench-made footwear, and leather accoutrements.
         </p>
 
-        {/* Filters and Controls */}
-        <div className="mt-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Category Tabs */}
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                className={cn(
-                  "px-4 py-2 text-xs uppercase tracking-luxury transition-all select-none border",
-                  selectedCategory === cat.id
-                    ? "bg-charcoal-900 text-canvas-primary border-charcoal-900"
-                    : "bg-canvas-surface text-charcoal-700 border-border-default hover:border-bronze hover:text-bronze"
-                )}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Sort Dropdown & Product Counter */}
-          <div className="flex items-center space-x-4">
-            <span className="text-xs text-charcoal-500">
-              {filteredProducts.length} {filteredProducts.length === 1 ? "Piece" : "Pieces"}
-            </span>
-
-            <select
-              value={sortBy}
-              onChange={(e) =>
-                setSortBy(
-                  e.target.value as "featured" | "price-asc" | "price-desc"
-                )
-              }
-              className="bg-canvas-surface border border-border-default text-xs uppercase tracking-wider text-charcoal-900 py-2 px-3 focus:outline-none focus:border-bronze rounded-none cursor-pointer"
-            >
-              <option value="featured">Featured First</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-            </select>
-          </div>
+        {/* Toolbar with Search, Category Filter, and Sorting */}
+        <div className="mt-8">
+          <Suspense fallback={<div className="h-10 bg-canvas-secondary/50 animate-pulse" />}>
+            <CatalogToolbar
+              categories={categories}
+              currentCategory={currentCategory}
+              currentSort={currentSort}
+              currentSearch={currentSearch}
+              totalCount={pagination.total}
+            />
+          </Suspense>
         </div>
       </div>
 
       {/* Product Grid */}
-      {filteredProducts.length === 0 ? (
+      {products.length === 0 ? (
         <div className="py-24 text-center">
-          <p className="text-base font-serif text-charcoal-900">
-            No creations found in this category.
+          <p className="text-lg font-serif text-charcoal-900">
+            No creations found matching your criteria.
           </p>
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className="mt-4 text-xs uppercase tracking-luxury text-bronze hover:underline"
+          <p className="text-xs text-charcoal-500 mt-2">
+            Try adjusting your search terms or view our complete collections.
+          </p>
+          <Link
+            href="/products"
+            className="inline-block mt-6 px-6 py-2.5 text-xs uppercase tracking-luxury bg-charcoal-900 text-canvas-primary hover:bg-bronze transition-colors"
           >
             Reset Filters
-          </button>
+          </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 sm:gap-10">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {pagination.totalPages > 1 && (
+            <div className="mt-16 pt-8 border-t border-border-default flex items-center justify-between">
+              <div>
+                {pagination.hasPrevPage ? (
+                  <Link
+                    href={`/products?${new URLSearchParams({
+                      ...(currentCategory !== "all" && { category: currentCategory }),
+                      ...(currentSearch && { search: currentSearch }),
+                      ...(currentSort !== "featured" && { sort: currentSort }),
+                      page: (pagination.page - 1).toString(),
+                    }).toString()}`}
+                    className="inline-flex items-center text-xs uppercase tracking-luxury text-charcoal-700 hover:text-bronze transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center text-xs uppercase tracking-luxury text-charcoal-300 cursor-not-allowed">
+                    <ArrowLeft className="w-4 h-4 mr-2" /> Previous
+                  </span>
+                )}
+              </div>
+
+              <div className="text-xs uppercase tracking-luxury text-charcoal-600">
+                Page {pagination.page} of {pagination.totalPages}
+              </div>
+
+              <div>
+                {pagination.hasNextPage ? (
+                  <Link
+                    href={`/products?${new URLSearchParams({
+                      ...(currentCategory !== "all" && { category: currentCategory }),
+                      ...(currentSearch && { search: currentSearch }),
+                      ...(currentSort !== "featured" && { sort: currentSort }),
+                      page: (pagination.page + 1).toString(),
+                    }).toString()}`}
+                    className="inline-flex items-center text-xs uppercase tracking-luxury text-charcoal-700 hover:text-bronze transition-colors"
+                  >
+                    Next <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                ) : (
+                  <span className="inline-flex items-center text-xs uppercase tracking-luxury text-charcoal-300 cursor-not-allowed">
+                    Next <ArrowRight className="w-4 h-4 ml-2" />
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
-  );
-}
-
-export default function ProductsPage() {
-  return (
-    <React.Suspense
-      fallback={
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center">
-          <div className="w-8 h-8 border-2 border-bronze border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-xs uppercase tracking-luxury text-charcoal-500">
-            Presenting the Collection...
-          </p>
-        </div>
-      }
-    >
-      <ProductsPageContent />
-    </React.Suspense>
   );
 }

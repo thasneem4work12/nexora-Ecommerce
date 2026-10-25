@@ -2,12 +2,15 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, Sparkles, Feather } from "lucide-react";
-import { INITIAL_PRODUCTS } from "@/lib/seed-data";
+import { getPublishedProducts } from "@/services/catalog.service";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Button } from "@/components/ui/Button";
 
-export default function HomePage() {
-  const featuredProducts = INITIAL_PRODUCTS.filter((p) => p.featured);
+export default async function HomePage() {
+  const { products: featuredProducts } = await getPublishedProducts({
+    featuredOnly: true,
+    limit: 4,
+  });
 
   return (
     <div className="space-y-24 sm:space-y-32 pb-24">

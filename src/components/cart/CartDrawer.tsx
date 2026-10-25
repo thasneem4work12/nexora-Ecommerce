@@ -23,7 +23,12 @@ export function CartDrawer() {
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-canvas-surface shadow-2xl flex flex-col border-l border-border-default">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Shopping Bag"
+          className="w-screen max-w-md bg-canvas-surface shadow-2xl flex flex-col border-l border-border-default"
+        >
           {/* Header */}
           <div className="p-6 border-b border-border-subtle flex items-center justify-between">
             <div className="flex items-center space-x-3">

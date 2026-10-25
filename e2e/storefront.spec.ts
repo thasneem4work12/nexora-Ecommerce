@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
+test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
   test("homepage renders luxury brand, announcement bar, and hero content", async ({ page }) => {
     await page.goto("/");
     await expect(page).toHaveTitle(/NEXORA Haute Couture/i);
@@ -19,7 +19,7 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
     await expect(exploreBtn).toBeVisible();
   });
 
-  test("can navigate to catalog, filter by category, and view product details", async ({ page }) => {
+  test("can navigate to catalog, search, filter by category, and view product details", async ({ page }) => {
     await page.goto("/products");
 
     // Check catalog header
@@ -28,11 +28,24 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
     // Filter by Footwear
     const footwearBtn = page.getByRole("button", { name: /Footwear/i });
     await footwearBtn.click();
+    await expect(page).toHaveURL(/.*category=footwear/);
     await expect(page.getByRole("heading", { name: /Oxfords/i })).toBeVisible();
 
-    // Reset filter to All Works
+    // Reset to All Works
     const allWorksBtn = page.getByRole("button", { name: /All Works/i });
     await allWorksBtn.click();
+
+    // Search for "briefcase"
+    const searchInput = page.getByPlaceholder(/Search by tailoring/i);
+    await searchInput.fill("briefcase");
+    await searchInput.press("Enter");
+    await expect(page).toHaveURL(/.*search=briefcase/);
+    await expect(page.getByRole("heading", { name: /Briefcase/i })).toBeVisible();
+
+    // Clear search and reset filter
+    const clearBtn = page.getByRole("button", { name: /Clear all/i });
+    await clearBtn.click();
+    await expect(page).toHaveURL(/.*products$/);
 
     // Click on Cashmere Trench to navigate to details
     const trench = page.getByRole("heading", { name: /Double-Breasted Cashmere Trench/i });
@@ -41,7 +54,7 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
     await expect(page.getByRole("button", { name: /Add to Shopping Bag/i })).toBeVisible();
   });
 
-  test("variant selection, cart drawer interactions, and checkout demo", async ({ page }) => {
+  test("variant selection, cart drawer interactions, and checkout demo with DB inventory validation", async ({ page }) => {
     await page.goto("/products/double-breasted-cashmere-trench");
 
     // Select Medium variant
@@ -57,8 +70,9 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
     await expect(page.getByText(/Camel \/ Medium/i).first()).toBeVisible();
     await expect(page.getByText(/\$1,450\.00/).first()).toBeVisible();
 
-    // Increase quantity to 2
-    const increaseBtn = page.getByRole("button", { name: /Increase quantity/i });
+    // Increase quantity to 2 inside the cart drawer dialog
+    const cartDialog = page.getByRole("dialog");
+    const increaseBtn = cartDialog.getByRole("button", { name: /Increase quantity/i });
     await increaseBtn.click();
     await expect(page.getByRole("heading", { name: /Shopping Bag \(2\)/i })).toBeVisible();
 
@@ -67,9 +81,9 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
     await checkoutLink.click();
     await expect(page).toHaveURL(/.*checkout/);
 
-    // Verify checkout demo notice is clearly displayed
+    // Verify Phase 2 checkout demonstration notice is clearly displayed
     await expect(
-      page.getByText(/Phase 1 Development Mode: Orders are verified and registered in staging mode/i)
+      page.getByText(/Phase 2 Demonstration Mode: Every commission order authoritatively validates variant stock/i)
     ).toBeVisible();
   });
 
@@ -93,18 +107,18 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
     await expect(page.getByRole("heading", { name: /Welcome, Sir Alistair Finch/i })).toBeVisible();
     await expect(page.getByText(/CUSTOMER/i)).toBeVisible();
 
-    // Task 3.5: Verify session survives page refresh
+    // Session survives page refresh
     await page.reload();
     await expect(page.getByRole("heading", { name: /Welcome, Sir Alistair Finch/i })).toBeVisible();
 
-    // Task 3.6: Sign out
+    // Sign out
     const signOutBtn = page.getByRole("button", { name: /Sign Out/i });
     await signOutBtn.click();
 
     // Verify redirection to home
     await expect(page).toHaveURL(/http:\/\/localhost:3000\/?$/);
 
-    // Task 3.7: Access /account signed out -> protected prompt shown
+    // Access /account signed out -> protected prompt shown
     await page.goto("/account");
     await expect(page.getByRole("heading", { name: /Private Area Protected/i })).toBeVisible();
   });
@@ -125,5 +139,31 @@ test.describe("NEXORA Storefront & Authentication E2E Suite", () => {
 
     // Close mobile menu
     await menuBtn.click();
+  });
+
+  test("API endpoints enforce published status and return catalog data", async ({ request }) => {
+    // Test 1: GET /api/products returns published catalog
+    const res = await request.get("/api/products");
+    expect(res.status()).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(Array.isArray(json.data)).toBe(true);
+    expect(json.data.length).toBeGreaterThan(0);
+
+    // Test 2: Unpublished item is not in /api/products
+    const unpublished = json.data.find(
+      (p: { slug: string }) => p.slug === "bespoke-vicuna-overcoat-private-archive"
+    );
+    expect(unpublished).toBeUndefined();
+
+    // Test 3: Direct slug lookup of unpublished item returns 404
+    const unpubRes = await request.get("/api/products/bespoke-vicuna-overcoat-private-archive");
+    expect(unpubRes.status()).toBe(404);
+
+    // Test 4: Direct slug lookup of published item returns 200
+    const pubRes = await request.get("/api/products/double-breasted-cashmere-trench");
+    expect(pubRes.status()).toBe(200);
+    const pubJson = await pubRes.json();
+    expect(pubJson.data.title).toBe("Double-Breasted Cashmere Trench");
   });
 });
