@@ -1,340 +1,807 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ShieldCheck, Lock, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  ShieldCheck,
+  Lock,
+  Truck,
+  CreditCard,
+  AlertCircle,
+  CheckCircle2,
+  Package,
+} from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useSession } from "@/lib/auth-client";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import type { ShippingMethodCode, ShippingMethodOption } from "@/types/order";
+import { SHIPPING_METHODS } from "@/services/shipping-tax.service";
 
 export default function CheckoutPage() {
+  const router = useRouter();
   const { cart, clearCart } = useCart();
   const { data: session } = useSession();
 
-  const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: session?.user?.email || "",
-    address: "",
-    apartment: "",
-    city: "",
-    country: "United States",
-    postalCode: "",
-  });
+  // Contact & Shipping State
+  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [stateOrProvince, setStateOrProvince] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("United States");
 
+  // Billing address state
+  const [sameAsShipping, setSameAsShipping] = useState(true);
+  const [billFirstName, setBillFirstName] = useState("");
+  const [billLastName, setBillLastName] = useState("");
+  const [billAddressLine1, setBillAddressLine1] = useState("");
+  const [billCity, setBillCity] = useState("");
+  const [billPostalCode, setBillPostalCode] = useState("");
+  const [billCountry, setBillCountry] = useState("United States");
+
+  // Delivery & Payment
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethodCode>("STANDARD");
+  const [paymentProvider, setPaymentProvider] = useState<"MOCK" | "PAYHERE">("MOCK");
+  const [notes, setNotes] = useState("");
+
+  // Rate Calculation State
+  const [availableMethods, setAvailableMethods] = useState<ShippingMethodOption[]>(
+    Object.values(SHIPPING_METHODS)
+  );
+  const [shippingCostInCents, setShippingCostInCents] = useState(0);
+  const [taxInCents, setTaxInCents] = useState(0);
+  const [taxRegion, setTaxRegion] = useState("");
+
+  // Status
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [validationError, setValidationError] = useState<string | null>(null);
+  // Populate authenticated session data
+  useEffect(() => {
+    if (session?.user) {
+      if (session.user.email) setEmail(session.user.email);
+      if (session.user.name) {
+        const parts = session.user.name.split(" ");
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
+    }
+  }, [session]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
+  // Recalculate dynamic rates when cart or destination changes
+  useEffect(() => {
+    async function updateRates() {
+      if (cart.items.length === 0) return;
+      try {
+        const res = await fetch("/api/checkout/shipping-rates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subtotalInCents: cart.subtotalInCents,
+            address: { country, city, postalCode },
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setAvailableMethods(data.shippingMethods);
+            const activeMethod = data.shippingMethods.find(
+              (m: ShippingMethodOption) => m.code === shippingMethod
+            );
+            if (activeMethod) {
+              setShippingCostInCents(activeMethod.priceInCents);
+            }
+            if (data.tax) {
+              setTaxInCents(data.tax.taxInCents);
+              setTaxRegion(data.tax.region);
+            }
+          }
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    updateRates();
+  }, [cart.subtotalInCents, country, city, postalCode, shippingMethod, cart.items.length]);
 
-  const handlePlaceOrder = async (e: React.FormEvent) => {
+  const finalTotalInCents = cart.subtotalInCents + shippingCostInCents + taxInCents;
+
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setValidationError(null);
+    setErrorMessage(null);
+
+    if (cart.items.length === 0) {
+      setErrorMessage("Your shopping bag is empty.");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      // Authoritative server-side inventory and price check against PostgreSQL
-      const response = await fetch("/api/cart/validate", {
+      const payload = {
+        items: cart.items.map((i) => ({
+          variantId: i.variantId,
+          quantity: i.quantity,
+        })),
+        shippingAddress: {
+          firstName,
+          lastName,
+          company: company || undefined,
+          phone: phone || undefined,
+          addressLine1,
+          addressLine2: addressLine2 || undefined,
+          city,
+          stateOrProvince: stateOrProvince || undefined,
+          postalCode,
+          country,
+        },
+        billingAddress: sameAsShipping
+          ? undefined
+          : {
+              firstName: billFirstName || firstName,
+              lastName: billLastName || lastName,
+              addressLine1: billAddressLine1,
+              city: billCity,
+              postalCode: billPostalCode,
+              country: billCountry,
+            },
+        shippingMethod,
+        paymentProvider,
+        guestEmail: !session?.user ? email : undefined,
+        guestName: !session?.user ? `${firstName} ${lastName}`.trim() : undefined,
+        notes: notes || undefined,
+      };
+
+      const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: cart.items }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
-      if (!response.ok || !data.success || !data.isValid) {
-        const errorMsg =
-          data.issues?.[0]?.message ||
-          "One or more pieces in your shopping bag are no longer available in the requested quantity.";
-        setValidationError(errorMsg);
-        setIsSubmitting(false);
-        return;
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Order submission failed.");
       }
 
-      // Order commission accepted (mock transaction prior to Phase 4 real payment gateway)
-      setIsSubmitting(false);
-      setIsCompleted(true);
+      const order = data.order;
+      const paymentSession = data.paymentSession;
+
+      // Clear local bag
       clearCart();
-    } catch {
-      setValidationError("Failed to communicate with the atelier inventory server. Please try again.");
+
+      // Handle redirect
+      if (paymentProvider === "MOCK") {
+        router.push(
+          `/checkout/success?order_id=${order.id}&payment_id=${paymentSession?.sessionId}&mock_success=true`
+        );
+      } else if (paymentSession?.formParameters) {
+        // PayHere POST submission flow
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = paymentSession.redirectUrl || "https://sandbox.payhere.lk/pay/checkout";
+
+        for (const [key, value] of Object.entries(paymentSession.formParameters)) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = String(value);
+          form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+      } else if (paymentSession?.redirectUrl) {
+        window.location.href = paymentSession.redirectUrl;
+      } else {
+        router.push(`/checkout/success?order_id=${order.id}`);
+      }
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "An unexpected error occurred during checkout."
+      );
       setIsSubmitting(false);
     }
   };
 
-  if (isCompleted) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-24 text-center space-y-6">
-        <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-          <CheckCircle2 className="w-8 h-8" />
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-serif text-charcoal-900">
-          Order Commission Confirmed
-        </h1>
-        <p className="text-sm text-charcoal-700 max-w-md mx-auto leading-relaxed">
-          Thank you for choosing NEXORA Haute Couture. A confirmation dispatch has been sent to{" "}
-          <strong className="text-charcoal-900">{formData.email || "your email"}</strong>.
-          Our atelier will begin preparing your garments.
-        </p>
-        <div className="pt-4 flex justify-center gap-4">
-          <Link href="/account">
-            <Button variant="primary" size="md">
-              View Private Account
-            </Button>
-          </Link>
-          <Link href="/products">
-            <Button variant="outline" size="md">
-              Continue Browsing
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   if (cart.items.length === 0) {
     return (
-      <div className="max-w-md mx-auto px-4 py-24 text-center space-y-4">
-        <h1 className="text-2xl font-serif text-charcoal-900">
-          No Items to Checkout
-        </h1>
-        <p className="text-xs text-charcoal-500">
-          Please add items to your shopping bag before proceeding to checkout.
+      <div className="max-w-2xl mx-auto px-4 py-24 text-center space-y-6">
+        <div className="w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mx-auto text-charcoal-500">
+          <Package className="w-8 h-8" />
+        </div>
+        <h1 className="text-3xl font-serif text-charcoal-900">Your Shopping Bag is Empty</h1>
+        <p className="text-sm text-charcoal-700 max-w-md mx-auto leading-relaxed">
+          You have no creations selected for checkout. Explore the NEXORA haute horology, fine
+          leathercraft, and couture collections.
         </p>
-        <Link href="/products">
-          <Button variant="primary" size="sm">
-            Discover Catalog
-          </Button>
-        </Link>
+        <div className="pt-4">
+          <Link href="/products">
+            <Button variant="primary" size="md">
+              Explore Collections
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
-      <div className="mb-8">
-        <Link
-          href="/cart"
-          className="inline-flex items-center text-xs uppercase tracking-luxury text-charcoal-500 hover:text-bronze transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 mr-2" /> Return to Bag
-        </Link>
-      </div>
+    <div className="bg-cream-50 min-h-screen py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Back navigation */}
+        <div className="mb-6">
+          <Link
+            href="/cart"
+            className="inline-flex items-center text-xs tracking-wider uppercase text-charcoal-700 hover:text-charcoal-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" /> Return to Bag
+          </Link>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* Left: Shipping Form (7 cols) */}
-        <div className="lg:col-span-7">
-          <form onSubmit={handlePlaceOrder} className="space-y-8">
-            {/* Contact Information */}
-            <div className="bg-canvas-surface border border-border-default p-6 sm:p-8 space-y-4">
-              <h2 className="text-sm uppercase tracking-luxury text-charcoal-900 font-semibold pb-3 border-b border-border-subtle">
-                1. Client Contact
-              </h2>
-              <div>
-                <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                  Email Address for Dispatch Updates
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="client@domain.com"
-                  className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                />
-              </div>
-            </div>
+        {/* Page Title */}
+        <div className="mb-8">
+          <span className="text-xs uppercase tracking-luxury text-bronze font-semibold">
+            Haute Couture Commission
+          </span>
+          <h1 className="text-3xl font-serif text-charcoal-900 mt-1">
+            Atelier Client Checkout
+          </h1>
+          <p className="text-xs text-charcoal-500 mt-1">
+            Authoritative order processing with automated stock reservations and insured dispatch.
+          </p>
+        </div>
 
-            {/* Shipping Address */}
-            <div className="bg-canvas-surface border border-border-default p-6 sm:p-8 space-y-4">
-              <h2 className="text-sm uppercase tracking-luxury text-charcoal-900 font-semibold pb-3 border-b border-border-subtle">
-                2. Delivery Destination
-              </h2>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    required
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    required
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                  Street Address
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  required
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="e.g. 740 Park Avenue"
-                  className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    required
-                    value={formData.city}
-                    onChange={handleChange}
-                    className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                    Postal Code
-                  </label>
-                  <input
-                    type="text"
-                    name="postalCode"
-                    required
-                    value={formData.postalCode}
-                    onChange={handleChange}
-                    className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1">
-                    Country
-                  </label>
-                  <select
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                    className="w-full bg-canvas-primary border border-border-default px-4 py-2 text-sm text-charcoal-900 focus:outline-none focus:border-bronze rounded-none"
-                  >
-                    <option value="United States">United States</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="France">France</option>
-                    <option value="Italy">Italy</option>
-                    <option value="Switzerland">Switzerland</option>
-                    <option value="Japan">Japan</option>
-                    <option value="United Arab Emirates">United Arab Emirates</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Verification / Phase 2 Notice */}
-            <div className="bg-canvas-surface border border-border-default p-6 sm:p-8 space-y-4">
-              <div className="flex items-center space-x-2 text-sm uppercase tracking-luxury text-charcoal-900 font-semibold pb-3 border-b border-border-subtle">
-                <Lock className="w-4 h-4 text-bronze" />
-                <span>3. Payment Guarantee</span>
-              </div>
-              <p className="text-xs text-charcoal-500 leading-relaxed">
-                Phase 2 Demonstration Mode: Every commission order authoritatively validates variant stock and pricing in PostgreSQL before acceptance. Live payment gateway integration (Stripe / approved provider) will be introduced in Phase 4.
-              </p>
-
-              {validationError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs">
-                  {validationError}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Left Column: Checkout Form */}
+          <div className="lg:col-span-7">
+            <form onSubmit={handleSubmitOrder} className="space-y-8">
+              {/* Error Notice */}
+              {errorMessage && (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-sm flex items-start space-x-3 text-rose-800 text-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="font-medium">Checkout Notice:</strong> {errorMessage}
+                  </div>
                 </div>
               )}
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                isLoading={isSubmitting}
-                className="w-full mt-4"
-              >
-                Confirm Commission ({formatPrice(cart.totalInCents)})
-              </Button>
-            </div>
-          </form>
-        </div>
+              {/* 1. Contact Info */}
+              <div className="bg-white p-6 sm:p-8 border border-cream-200 rounded-sm shadow-luxury">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-serif text-charcoal-900">1. Client Contact</h2>
+                  {!session?.user && (
+                    <Link
+                      href="/login?callbackUrl=/checkout"
+                      className="text-xs uppercase tracking-wider text-charcoal-700 hover:text-charcoal-900 underline"
+                    >
+                      Already registered? Sign In
+                    </Link>
+                  )}
+                </div>
 
-        {/* Right: Order Summary (5 cols) */}
-        <div className="lg:col-span-5">
-          <div className="bg-canvas-surface border border-border-default p-6 sm:p-8 space-y-6">
-            <h2 className="text-sm uppercase tracking-luxury text-charcoal-900 font-semibold pb-3 border-b border-border-subtle">
-              Bag Summary ({cart.itemCount})
-            </h2>
-
-            <div className="divide-y divide-border-subtle max-h-96 overflow-y-auto">
-              {cart.items.map((item) => (
-                <div key={item.variantId} className="py-4 flex gap-4 items-center">
-                  <div className="relative w-16 h-20 bg-canvas-secondary border border-border-subtle flex-shrink-0">
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Email Address for Order Dispatch *
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="client@luxuryhouse.com"
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
                     />
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-xs font-serif text-charcoal-900 line-clamp-1">
-                      {item.title}
-                    </h4>
-                    <p className="text-[11px] text-charcoal-500">
-                      {item.variantTitle} × {item.quantity}
-                    </p>
-                    <p className="text-xs font-medium text-bronze mt-0.5">
-                      {formatPrice(item.priceInCents * item.quantity)}
-                    </p>
+                  <div>
+                    <label htmlFor="phone" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Telephone (For Courier Notification)
+                    </label>
+                    <input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+1 (555) 000-0000 or +94 77 000 0000"
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <div className="border-t border-border-subtle pt-4 space-y-2 text-xs">
-              <div className="flex justify-between text-charcoal-700">
-                <span>Subtotal</span>
-                <span className="font-medium text-charcoal-900">{formatPrice(cart.subtotalInCents)}</span>
-              </div>
-              <div className="flex justify-between text-charcoal-700">
-                <span>Shipping</span>
-                <span>{cart.shippingInCents === 0 ? "Complimentary" : formatPrice(cart.shippingInCents)}</span>
-              </div>
-              <div className="flex justify-between text-charcoal-700">
-                <span>Estimated Tax (8%)</span>
-                <span>{formatPrice(cart.estimatedTaxInCents)}</span>
-              </div>
-              <div className="flex justify-between text-charcoal-900 text-sm font-serif font-bold pt-2 border-t border-border-subtle">
-                <span>Total Due</span>
-                <span className="text-bronze">{formatPrice(cart.totalInCents)}</span>
-              </div>
-            </div>
+              {/* 2. Shipping Address */}
+              <div className="bg-white p-6 sm:p-8 border border-cream-200 rounded-sm shadow-luxury">
+                <h2 className="text-lg font-serif text-charcoal-900 mb-4">
+                  2. Shipping Destination
+                </h2>
 
-            <div className="border-t border-border-subtle pt-4 flex items-center space-x-2 text-[11px] text-charcoal-500">
-              <ShieldCheck className="w-4 h-4 text-bronze flex-shrink-0" />
-              <span>256-Bit SSL Encrypted & Verified Private Checkout</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      First Name *
+                    </label>
+                    <input
+                      id="firstName"
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="lastName" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Last Name *
+                    </label>
+                    <input
+                      id="lastName"
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label htmlFor="company" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Company / Estate (Optional)
+                    </label>
+                    <input
+                      id="company"
+                      type="text"
+                      value={company}
+                      onChange={(e) => setCompany(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label htmlFor="addressLine1" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Street Address *
+                    </label>
+                    <input
+                      id="addressLine1"
+                      type="text"
+                      required
+                      value={addressLine1}
+                      onChange={(e) => setAddressLine1(e.target.value)}
+                      placeholder="House/Apartment number, street name"
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label htmlFor="addressLine2" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Apartment, Suite, Unit (Optional)
+                    </label>
+                    <input
+                      id="addressLine2"
+                      type="text"
+                      value={addressLine2}
+                      onChange={(e) => setAddressLine2(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="city" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      City *
+                    </label>
+                    <input
+                      id="city"
+                      type="text"
+                      required
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="stateOrProvince" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      State / Province / County
+                    </label>
+                    <input
+                      id="stateOrProvince"
+                      type="text"
+                      value={stateOrProvince}
+                      onChange={(e) => setStateOrProvince(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="postalCode" className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Postal Code / ZIP *
+                    </label>
+                    <input
+                      id="postalCode"
+                      type="text"
+                      required
+                      value={postalCode}
+                      onChange={(e) => setPostalCode(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                      Country *
+                    </label>
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                    >
+                      <option value="United States">United States</option>
+                      <option value="Sri Lanka">Sri Lanka</option>
+                      <option value="United Kingdom">United Kingdom</option>
+                      <option value="France">France</option>
+                      <option value="Germany">Germany</option>
+                      <option value="Italy">Italy</option>
+                      <option value="Switzerland">Switzerland</option>
+                      <option value="United Arab Emirates">United Arab Emirates</option>
+                      <option value="Singapore">Singapore</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Same as billing toggle */}
+                <div className="mt-6 pt-4 border-t border-cream-200">
+                  <label className="flex items-center space-x-2 text-sm text-charcoal-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sameAsShipping}
+                      onChange={(e) => setSameAsShipping(e.target.checked)}
+                      className="rounded border-cream-300 text-charcoal-900 focus:ring-0"
+                    />
+                    <span>Billing address is identical to shipping address</span>
+                  </label>
+                </div>
+
+                {!sameAsShipping && (
+                  <div className="mt-4 pt-4 border-t border-cream-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <h3 className="sm:col-span-2 text-sm font-serif font-medium text-charcoal-900">
+                      Billing Address Details
+                    </h3>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={billFirstName}
+                        onChange={(e) => setBillFirstName(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={billLastName}
+                        onChange={(e) => setBillLastName(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                        Street Address *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={billAddressLine1}
+                        onChange={(e) => setBillAddressLine1(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                        City *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={billCity}
+                        onChange={(e) => setBillCity(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                        Postal Code *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={billPostalCode}
+                        onChange={(e) => setBillPostalCode(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                        Country *
+                      </label>
+                      <select
+                        value={billCountry}
+                        onChange={(e) => setBillCountry(e.target.value)}
+                        className="w-full px-3 py-2.5 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                      >
+                        <option value="United States">United States</option>
+                        <option value="Sri Lanka">Sri Lanka</option>
+                        <option value="United Kingdom">United Kingdom</option>
+                        <option value="France">France</option>
+                        <option value="Germany">Germany</option>
+                        <option value="Italy">Italy</option>
+                        <option value="Switzerland">Switzerland</option>
+                        <option value="United Arab Emirates">United Arab Emirates</option>
+                        <option value="Singapore">Singapore</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Delivery Method */}
+              <div className="bg-white p-6 sm:p-8 border border-cream-200 rounded-sm shadow-luxury">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Truck className="w-5 h-5 text-charcoal-700" />
+                  <h2 className="text-lg font-serif text-charcoal-900">3. Delivery Method</h2>
+                </div>
+
+                <div className="space-y-3">
+                  {availableMethods.map((method) => (
+                    <label
+                      key={method.code}
+                      className={`flex items-start justify-between p-4 border rounded-sm cursor-pointer transition-colors ${
+                        shippingMethod === method.code
+                          ? "border-charcoal-900 bg-cream-50"
+                          : "border-cream-200 hover:border-cream-300"
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="radio"
+                          name="shippingMethod"
+                          value={method.code}
+                          checked={shippingMethod === method.code}
+                          onChange={() => setShippingMethod(method.code)}
+                          className="mt-1 text-charcoal-900 focus:ring-0"
+                        />
+                        <div>
+                          <div className="text-sm font-medium text-charcoal-900">
+                            {method.title}
+                          </div>
+                          <div className="text-xs text-charcoal-700 mt-0.5">
+                            {method.description}
+                          </div>
+                          <div className="text-xs text-charcoal-700 mt-1 italic">
+                            Est. {method.estimatedDays}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm font-medium text-charcoal-900">
+                        {method.priceInCents === 0 ? "Complimentary" : formatPrice(method.priceInCents)}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 4. Payment Provider */}
+              <div className="bg-white p-6 sm:p-8 border border-cream-200 rounded-sm shadow-luxury">
+                <div className="flex items-center space-x-2 mb-4">
+                  <CreditCard className="w-5 h-5 text-charcoal-700" />
+                  <h2 className="text-lg font-serif text-charcoal-900">4. Payment Gateway</h2>
+                </div>
+
+                <div className="space-y-3">
+                  <label
+                    className={`flex items-start justify-between p-4 border rounded-sm cursor-pointer transition-colors ${
+                      paymentProvider === "MOCK"
+                        ? "border-charcoal-900 bg-cream-50"
+                        : "border-cream-200 hover:border-cream-300"
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        name="paymentProvider"
+                        value="MOCK"
+                        checked={paymentProvider === "MOCK"}
+                        onChange={() => setPaymentProvider("MOCK")}
+                        className="mt-1 text-charcoal-900 focus:ring-0"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-charcoal-900 flex items-center gap-2">
+                          <span>NEXORA Atelier Sandbox</span>
+                          <span className="text-[10px] bg-charcoal-100 text-charcoal-800 px-1.5 py-0.5 rounded tracking-wider uppercase font-medium">
+                            Test Mode
+                          </span>
+                        </div>
+                        <div className="text-xs text-charcoal-700 mt-0.5">
+                          Instant simulated authorization with zero live card charges.
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-start justify-between p-4 border rounded-sm cursor-pointer transition-colors ${
+                      paymentProvider === "PAYHERE"
+                        ? "border-charcoal-900 bg-cream-50"
+                        : "border-cream-200 hover:border-cream-300"
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        name="paymentProvider"
+                        value="PAYHERE"
+                        checked={paymentProvider === "PAYHERE"}
+                        onChange={() => setPaymentProvider("PAYHERE")}
+                        className="mt-1 text-charcoal-900 focus:ring-0"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-charcoal-900 flex items-center gap-2">
+                          <span>PayHere Payment Gateway</span>
+                          <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded tracking-wider uppercase font-medium">
+                            CBSL Licensed
+                          </span>
+                        </div>
+                        <div className="text-xs text-charcoal-700 mt-0.5">
+                          Visa, Mastercard, Amex, and Sri Lankan banking channels.
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Atelier Instructions */}
+                <div className="mt-4">
+                  <label className="block text-xs uppercase tracking-wider text-charcoal-700 mb-1">
+                    Special Inscriptions or Atelier Requests (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="e.g. Please include confidential gift packaging with engraved monogramming..."
+                    className="w-full px-3 py-2 bg-cream-50 border border-cream-300 rounded-sm text-sm focus:outline-none focus:border-charcoal-900"
+                  />
+                </div>
+              </div>
+
+              {/* Submit CTA */}
+              <div>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  disabled={isSubmitting}
+                  className="w-full py-4 text-base tracking-widest uppercase"
+                >
+                  {isSubmitting ? "Authorizing Atelier Order..." : `Complete Order — ${formatPrice(finalTotalInCents)}`}
+                </Button>
+
+                <div className="flex items-center justify-center space-x-6 text-xs text-charcoal-700 mt-4">
+                  <span className="flex items-center">
+                    <ShieldCheck className="w-4 h-4 mr-1 text-emerald-700" /> 256-Bit SSL Encryption
+                  </span>
+                  <span className="flex items-center">
+                    <Lock className="w-4 h-4 mr-1 text-emerald-700" /> Stock Reserved Instantly
+                  </span>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Right Column: Order Summary */}
+          <div className="lg:col-span-5">
+            <div className="bg-white p-6 sm:p-8 border border-cream-200 rounded-sm shadow-luxury sticky top-28 space-y-6">
+              <h2 className="text-lg font-serif text-charcoal-900 pb-4 border-b border-cream-200">
+                Order Summary ({cart.itemCount} {cart.itemCount === 1 ? "Piece" : "Pieces"})
+              </h2>
+
+              {/* Line items list */}
+              <div className="divide-y divide-cream-100 max-h-96 overflow-y-auto pr-1">
+                {cart.items.map((item) => (
+                  <div key={item.variantId} className="py-3 flex space-x-4">
+                    <div className="relative w-16 h-20 bg-cream-100 flex-shrink-0 border border-cream-200 overflow-hidden rounded-xs">
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                          sizes="64px"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-charcoal-400 text-xs">
+                          NEXORA
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-charcoal-900 truncate">
+                        {item.title}
+                      </div>
+                      <div className="text-xs text-charcoal-700 mt-0.5">
+                        {item.variantTitle}
+                      </div>
+                      <div className="text-xs text-charcoal-700 mt-1">
+                        Qty: {item.quantity}
+                      </div>
+                    </div>
+
+                    <div className="text-sm font-medium text-charcoal-900">
+                      {formatPrice(item.priceInCents * item.quantity)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals Breakdown */}
+              <div className="pt-4 border-t border-cream-200 space-y-2.5 text-sm">
+                <div className="flex justify-between text-charcoal-700">
+                  <span>Subtotal</span>
+                  <span>{formatPrice(cart.subtotalInCents)}</span>
+                </div>
+
+                <div className="flex justify-between text-charcoal-700">
+                  <span>Shipping & Delivery</span>
+                  <span>
+                    {shippingCostInCents === 0 ? "Complimentary" : formatPrice(shippingCostInCents)}
+                  </span>
+                </div>
+
+                <div className="flex justify-between text-charcoal-700">
+                  <div>
+                    <span>Estimated Tax & Duties</span>
+                    {taxRegion && (
+                      <span className="block text-[11px] text-charcoal-700 italic">{taxRegion}</span>
+                    )}
+                  </div>
+                  <span>{formatPrice(taxInCents)}</span>
+                </div>
+
+                <div className="pt-3 border-t border-cream-200 flex justify-between items-baseline font-serif">
+                  <span className="text-base text-charcoal-900">Total Payable</span>
+                  <span className="text-xl text-charcoal-900 font-sans font-medium">
+                    {formatPrice(finalTotalInCents)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Atelier Guarantees */}
+              <div className="bg-cream-50 p-4 border border-cream-200 rounded-sm text-xs text-charcoal-700 space-y-2">
+                <div className="flex items-center gap-2 font-medium text-charcoal-900">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-700" /> Authenticity & Archival Guarantee
+                </div>
+                <p className="leading-relaxed">
+                  Every creation is numbered, inspected by master artisans, and protected with signature
+                  insured tracking.
+                </p>
+              </div>
             </div>
           </div>
         </div>

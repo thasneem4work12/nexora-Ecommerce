@@ -82,9 +82,9 @@ test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
     await checkoutLink.click();
     await expect(page).toHaveURL(/.*checkout/);
 
-    // Verify Phase 2 checkout demonstration notice is clearly displayed
+    // Verify checkout page heading is clearly displayed
     await expect(
-      page.getByText(/Phase 2 Demonstration Mode: Every commission order authoritatively validates variant stock/i)
+      page.getByRole("heading", { name: /Atelier Client Checkout/i })
     ).toBeVisible();
   });
 

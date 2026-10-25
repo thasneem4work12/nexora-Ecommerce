@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 
@@ -53,6 +53,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "06-register-desktop.png") });
 
     // 07: Login page desktop
+    await desktopContext.clearCookies();
     await page.goto("/login", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "07-login-desktop.png") });
 
@@ -60,7 +61,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
     await page.locator('input[id="password"]').fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
-    await page.waitForURL(/.*account/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
     // 10: Admin Dashboard Overview
     await page.goto("/admin", { waitUntil: "networkidle" });
@@ -81,6 +82,22 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     // 14: Admin Inventory Audit Ledger
     await page.goto("/admin/inventory/movements", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "14-admin-inventory-audit-ledger.png") });
+
+    // 15: Admin Orders Overview
+    await page.goto("/admin/orders", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "15-admin-orders-list.png") });
+
+    // 16: Admin Order Detail (if any order exists)
+    const firstOrderLink = page.locator('a[href^="/admin/orders/"]').first();
+    if (await firstOrderLink.isVisible()) {
+      await firstOrderLink.click();
+      await page.waitForLoadState("networkidle");
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, "16-admin-order-detail.png") });
+    }
+
+    // 17: Client Account Orders
+    await page.goto("/account/orders", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "17-account-orders-history.png") });
 
     await desktopContext.close();
 

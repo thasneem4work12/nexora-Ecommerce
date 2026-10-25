@@ -9,6 +9,7 @@ import {
   Layers,
   Boxes,
   History,
+  ShoppingBag,
   Settings,
   ExternalLink,
   LogOut,
@@ -38,6 +39,11 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       label: "Overview",
       icon: LayoutDashboard,
       exact: true,
+    },
+    {
+      href: "/admin/orders",
+      label: "Orders & Fulfillment",
+      icon: ShoppingBag,
     },
     {
       href: "/admin/products",

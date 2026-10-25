@@ -170,11 +170,18 @@ export default function AccountPage() {
                   When you place an order, your tracking details, provenance certificate, and courier updates will appear here.
                 </p>
               </div>
-              <Link href="/products">
-                <Button variant="outline" size="sm" className="mt-2">
-                  Browse Catalog
-                </Button>
-              </Link>
+              <div className="flex gap-3 justify-center">
+                <Link href="/account/orders">
+                  <Button variant="primary" size="sm" className="mt-2">
+                    View Orders Portal
+                  </Button>
+                </Link>
+                <Link href="/products">
+                  <Button variant="outline" size="sm" className="mt-2">
+                    Browse Catalog
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -66,6 +66,10 @@ describe("Admin Authorization & RBAC Matrix", () => {
     expect(hasPermission("STAFF", "PUBLISH_PRODUCT")).toBe(false);
     expect(hasPermission("STAFF", "ARCHIVE_PRODUCT")).toBe(false);
 
+    // Staff can view orders, but cannot manage fulfillment
+    expect(hasPermission("STAFF", "VIEW_ORDERS")).toBe(true);
+    expect(hasPermission("STAFF", "MANAGE_ORDERS")).toBe(false);
+
     // Staff cannot manage categories, audit logs, or settings
     expect(hasPermission("STAFF", "MANAGE_CATEGORIES")).toBe(false);
     expect(hasPermission("STAFF", "MANAGE_VARIANTS")).toBe(false);
@@ -76,6 +80,8 @@ describe("Admin Authorization & RBAC Matrix", () => {
   it("should grant MANAGER product and category management but deny destructive store settings", () => {
     expect(hasPermission("MANAGER", "VIEW_ADMIN")).toBe(true);
     expect(hasPermission("MANAGER", "VIEW_PRODUCTS")).toBe(true);
+    expect(hasPermission("MANAGER", "VIEW_ORDERS")).toBe(true);
+    expect(hasPermission("MANAGER", "MANAGE_ORDERS")).toBe(true);
     expect(hasPermission("MANAGER", "CREATE_PRODUCT")).toBe(true);
     expect(hasPermission("MANAGER", "EDIT_PRODUCT")).toBe(true);
     expect(hasPermission("MANAGER", "PUBLISH_PRODUCT")).toBe(true);

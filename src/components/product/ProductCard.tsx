@@ -36,7 +36,7 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <div className="group relative flex flex-col bg-canvas-surface border border-border-subtle hover:border-border-strong transition-all duration-300">
+    <article className="group relative flex flex-col bg-canvas-surface border border-border-subtle hover:border-border-strong transition-all duration-300">
       {/* Product Image Container */}
       <Link
         href={`/products/${product.slug}`}
@@ -99,6 +99,6 @@ export function ProductCard({ product }: ProductCardProps) {
           </span>
         </div>
       </div>
-    </div>
+    </article>
   );
 }

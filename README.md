@@ -1,6 +1,6 @@
 # NEXORA Commerce — Haute Couture & Bespoke Luxury E-Commerce Platform
 
-> **Version:** 0.8.0 (Phase 3 Complete — Business Administration, Product Management & Inventory Auditing)  
+> **Version:** 0.9.0 (Phase 4 Complete — Secure Checkout, Order Processing, Payment Integration & Stock Reservation)  
 > **Architecture:** Modular Monolith with Next.js 15 App Router, TypeScript Strict Mode, Tailwind CSS, Prisma ORM 6, and PostgreSQL 16
 
 ---
@@ -9,34 +9,35 @@
 
 **NEXORA Commerce** is a production-grade, multi-business e-commerce SaaS platform designed for discerning retailers, physical goods boutiques, and atelier fashion brands.
 
-In **Phase 3**, we implemented a comprehensive business administration dashboard, product management CRUD, variant management, and an audited transactional inventory system connected directly to PostgreSQL:
+In **Phase 4**, we transformed the catalog into a transactional commerce engine with authoritative pricing, concurrency-safe stock reservation, payment gateway integration, and comprehensive order lifecycle management:
 
-- **Role-Based Access Control (RBAC):** Strict 5-tier role hierarchy (`CUSTOMER`, `STAFF`, `MANAGER`, `OWNER`, `SUPERADMIN`) verified directly against PostgreSQL on every protected API and Server Component page. Customer accounts cannot access administrative capabilities.
-- **Secure Owner Bootstrapping CLI:** `npm run admin:bootstrap` CLI script (`scripts/bootstrap-owner.ts`) enables initial store director creation without exposing any vulnerable public elevation endpoints.
-- **Executive Administration Dashboard (`/admin`):**
-  - Live metric cards queried authoritatively from PostgreSQL: Active Creations, Published Pieces, Total SKUs, Low-Stock Alerts, and Sold-Out Indicators (no fake analytics).
-  - Recent stock movements feed with administrator attribution.
-  - Responsive administrative sidebar with role badge and secure sign-out.
-- **Product Management & Lifecycle (`/admin/products`):**
-  - Paginated product list with search, house discipline filter, and status tabs (All, Published, Draft, Private Archive).
-  - Creation & Edit suite (`/admin/products/new`, `/admin/products/[id]`) with Zod validation.
-  - Automated SEO-friendly slug generator with collision resolution.
-  - Quick publish/unpublish toggling with immediate storefront cache invalidation (`revalidatePath`).
-  - Non-destructive archiving (`isArchived: true`, `archivedAt`) preserving historical inventory movements and order records while instantly hiding products from customer discovery.
-- **House Discipline / Category Management (`/admin/categories`):**
-  - Category manager with linked product counters.
-  - Safe deletion guard preventing deletion of categories with active creations.
-- **Variant & Inventory Management (`/admin/inventory`):**
-  - Variant-level inventory tracking (SKU, title, size, color, price in cents, stock, threshold).
-  - Configurable low-stock alert thresholds.
-  - Filter by low-stock and out-of-stock items.
-  - Audited stock adjustment modal supporting Restock, Manual Correction, Damaged Write-off, and Return.
-  - Concurrency-safe Prisma transactions preventing negative inventory (`adjustStock`).
-- **Auditable Inventory Ledger (`/admin/inventory/movements`):**
-  - Immutable audit trail recording variant ID, quantity change, previous stock, new stock, classification, audit reason, reference code, timestamp, and acting administrator.
-- **Product Image Uploading (`/api/admin/upload`):**
-  - Multi-image gallery supporting both local uploads (JPEG, PNG, WebP, AVIF up to 5MB, stored in `public/uploads/products/` with UUID filenames) and high-resolution CDN URLs.
-- **Storefront Compatibility:** Customer storefront queries (`catalog.service.ts`) filter out archived products, and mutations immediately invalidate public Next.js caches.
+- **Authoritative Database Models:** Implemented `Order`, `OrderItem`, `Address`, `Payment`, `PaymentEvent`, `StockReservation`, and `Shipment` with strict referential integrity, indexes, and immutable snapshots.
+- **Authoritative Server-Side Pricing:** All currency stored strictly in integer minor units (USD cents). Client-submitted prices and totals are never trusted; the server recomputes subtotal, tiered shipping, and destination taxes.
+- **Concurrency-Safe Stock Reservations:**
+  - PostgreSQL row locking (`FOR UPDATE`) serializes simultaneous checkout attempts.
+  - Active reservation prevents race conditions and overselling.
+  - Sweeper service automatically releases expired reservations (`PENDING` -> `EXPIRED`) and atomically restores variant stock.
+- **Sri Lankan & International Payment Architecture:**
+  - **PayHere Gateway:** Sri Lanka CBSL-approved payment provider supporting LKR and international currencies (USD, GBP, EUR) with MD5 signature validation.
+  - **Mock Sandbox Provider:** Isolated sandbox provider with HMAC-SHA256 signature verification for zero-cost automated testing, strictly disabled in production.
+  - **Webhook Idempotency:** Secure webhook processing with event deduplication (`PaymentEvent`) preventing replay attacks or duplicate captures.
+- **Client Checkout & Order History:**
+  - Luxury Editorial Checkout (`/checkout`): Multi-tier delivery selection (Standard, Express, White Glove), separate shipping/billing addresses, live summary.
+  - Confirmation Portal (`/checkout/success`): Clear order reference (`NXR-YYYY-XXXXXX`), financial breakdown, and printable invoice.
+  - Client Order History (`/account/orders` and `/account/orders/[id]`): Filterable order cards, line item snapshots, live order timeline, and self-service cancellation for pending commissions.
+- **Executive Order Fulfillment Suite (`/admin/orders`):**
+  - Atelier Order Desk (`/admin/orders`): Real-time financial metrics (Gross Volume, Commission Count, Pending Payments, In Dispatch), filter by status/payment/search.
+  - Detailed Order Inspector (`/admin/orders/[id]`): Client details, billing/shipping addresses, itemized breakdown, and audit ledger.
+  - Courier Dispatch Modal: Record carrier, tracking number, and dispatch notes with automatic `SHIPPED` status progression.
+  - Financial Safety Rules: Unpaid orders cannot be fraudulently forced to paid without authoritative gateway webhook confirmation.
+
+---
+
+### Previous Milestone Deliverables (Phases 1–3)
+
+- **Role-Based Access Control (RBAC):** Strict 5-tier role hierarchy (`CUSTOMER`, `STAFF`, `MANAGER`, `OWNER`, `SUPERADMIN`) verified directly against PostgreSQL.
+- **Product & Variant Catalog:** Multi-image gallery, category associations, and live stock auditing.
+- **Auditable Inventory Ledger:** Append-only ledger recording all stock changes with administrator attribution.
 
 ---
 
@@ -129,13 +130,13 @@ Open [http://localhost:3000](http://localhost:3000) for the storefront, or sign 
 ## 5. Automated Testing
 
 ### Unit & Integration Tests (Vitest)
-Executes 56 automated tests verifying RBAC matrix enforcement, product lifecycle, duplicate SKU prevention, category deletion guards, audited inventory adjustments, and negative stock rejection:
+Executes 99 automated tests across 13 test files verifying RBAC matrix enforcement, product lifecycle, duplicate SKU prevention, category deletion guards, audited inventory adjustments, concurrency-safe stock reservations, authoritative order pricing, and webhook signature verification:
 ```powershell
 npm run test
 ```
 
 ### End-to-End Browser Tests (Playwright)
-Executes 11 full browser tests across desktop and mobile viewports, including unauthorized access denial, customer rejection, store director authentication, product creation, stock adjustment, audit ledger entry, and storefront reflection:
+Executes 13 full browser tests across desktop and mobile viewports, including unauthorized access denial, customer rejection, store director authentication, product creation, stock adjustment, audit ledger entry, full customer checkout, order confirmation, client order history, admin order filtering, and shipment tracking dispatch:
 ```powershell
 npx playwright test
 ```
@@ -162,3 +163,4 @@ Visual verification artifacts are saved to:
 - `12-admin-product-editor.png` — Multi-section product creation & variant manager
 - `13-admin-inventory-stock.png` — Stock control table with low-stock alerts
 - `14-admin-inventory-audit-ledger.png` — Immutable audit trail with administrator attribution
+- `15-admin-orders-list.png` — Atelier Order Desk with financial overview and status metrics

@@ -1,22 +1,27 @@
 import React from "react";
 import Link from "next/link";
 import { getDashboardMetrics } from "@/services/admin-catalog.service";
+import { getAdminOrderMetrics } from "@/services/admin-order.service";
+import { formatPrice } from "@/lib/utils";
 import {
   Package,
   Boxes,
   AlertTriangle,
   CheckCircle2,
-  Archive,
   ArrowRight,
   Plus,
   History,
+  ShoppingBag,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export default async function AdminDashboardPage() {
-  const metrics = await getDashboardMetrics();
+  const [metrics, orderMetrics] = await Promise.all([
+    getDashboardMetrics(),
+    getAdminOrderMetrics(),
+  ]);
 
   return (
     <div className="space-y-10">
@@ -30,11 +35,16 @@ export default async function AdminDashboardPage() {
             Dashboard Overview
           </h1>
           <p className="text-xs text-charcoal-500 mt-1 font-light">
-            Real-time catalog and inventory analytics queried directly from PostgreSQL.
+            Real-time catalog, orders, and inventory analytics queried directly from PostgreSQL.
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
+          <Link href="/admin/orders">
+            <Button variant="outline" size="sm">
+              <ShoppingBag className="w-4 h-4 mr-2" /> Orders ({orderMetrics.totalOrders})
+            </Button>
+          </Link>
           <Link href="/admin/inventory">
             <Button variant="outline" size="sm">
               <Boxes className="w-4 h-4 mr-2" /> Adjust Stock
@@ -49,19 +59,46 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* Gross Revenue */}
+        <div className="bg-canvas-surface p-5 border border-border-default space-y-2">
+          <div className="flex items-center justify-between text-charcoal-500">
+            <span className="text-xs uppercase tracking-wider font-medium">Gross Revenue</span>
+            <ShoppingBag className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-serif text-charcoal-900">
+            {formatPrice(orderMetrics.totalRevenueInCents)}
+          </div>
+          <div className="text-[11px] text-charcoal-500">
+            <span>{orderMetrics.paidOrders} settled commissions</span>
+          </div>
+        </div>
+
+        {/* Total Orders */}
+        <div className="bg-canvas-surface p-5 border border-border-default space-y-2">
+          <div className="flex items-center justify-between text-charcoal-500">
+            <span className="text-xs uppercase tracking-wider font-medium">Fulfillment</span>
+            <CheckCircle2 className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="text-2xl font-serif text-charcoal-900">
+            {orderMetrics.totalOrders}
+          </div>
+          <div className="text-[11px] text-charcoal-500">
+            <span>{orderMetrics.pendingFulfillment} pending atelier dispatch</span>
+          </div>
+        </div>
+
         {/* Total Products */}
         <div className="bg-canvas-surface p-5 border border-border-default space-y-2">
           <div className="flex items-center justify-between text-charcoal-500">
             <span className="text-xs uppercase tracking-wider font-medium">Active Creations</span>
             <Package className="w-4 h-4 text-bronze" />
           </div>
-          <div className="text-3xl font-serif text-charcoal-900">
+          <div className="text-2xl font-serif text-charcoal-900">
             {metrics.totalProducts}
           </div>
           <div className="text-[11px] text-charcoal-500 flex items-center">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mr-1" />
-            <span>{metrics.publishedProducts} published on storefront</span>
+            <span>{metrics.publishedProducts} published</span>
           </div>
         </div>
 
@@ -71,11 +108,11 @@ export default async function AdminDashboardPage() {
             <span className="text-xs uppercase tracking-wider font-medium">Total SKUs</span>
             <Boxes className="w-4 h-4 text-bronze" />
           </div>
-          <div className="text-3xl font-serif text-charcoal-900">
+          <div className="text-2xl font-serif text-charcoal-900">
             {metrics.totalVariants}
           </div>
           <div className="text-[11px] text-charcoal-500">
-            <span>Size & color variant combinations</span>
+            <span>Size & color combinations</span>
           </div>
         </div>
 
@@ -85,11 +122,11 @@ export default async function AdminDashboardPage() {
             <span className="text-xs uppercase tracking-wider font-medium">Low Stock</span>
             <AlertTriangle className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="text-3xl font-serif text-amber-700">
+          <div className="text-2xl font-serif text-amber-700">
             {metrics.lowStockVariants}
           </div>
           <div className="text-[11px] text-amber-800">
-            <span>At or below minimum threshold</span>
+            <span>At or below threshold</span>
           </div>
         </div>
 
@@ -99,25 +136,11 @@ export default async function AdminDashboardPage() {
             <span className="text-xs uppercase tracking-wider font-medium">Sold Out</span>
             <AlertTriangle className="w-4 h-4 text-rose-600" />
           </div>
-          <div className="text-3xl font-serif text-rose-700">
+          <div className="text-2xl font-serif text-rose-700">
             {metrics.outOfStockVariants}
           </div>
           <div className="text-[11px] text-rose-800">
-            <span>Requires atelier restocking</span>
-          </div>
-        </div>
-
-        {/* Archived Products */}
-        <div className="bg-canvas-surface p-5 border border-border-default space-y-2">
-          <div className="flex items-center justify-between text-charcoal-500">
-            <span className="text-xs uppercase tracking-wider font-medium">Archived</span>
-            <Archive className="w-4 h-4 text-charcoal-400" />
-          </div>
-          <div className="text-3xl font-serif text-charcoal-700">
-            {metrics.archivedProducts}
-          </div>
-          <div className="text-[11px] text-charcoal-500">
-            <span>Preserved historical pieces</span>
+            <span>Requires restocking</span>
           </div>
         </div>
       </div>
