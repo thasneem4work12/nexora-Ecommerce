@@ -64,7 +64,6 @@ export default async function CustomerOrdersPage() {
             {orders.map((order) => {
               const isPaid = order.paymentStatus === "PAID";
               const isShipped = order.status === "SHIPPED";
-              const isCancelled = order.status === "CANCELLED";
 
               return (
                 <div
@@ -128,22 +127,38 @@ export default async function CustomerOrdersPage() {
                   <div className="p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div className="space-y-3 flex-1">
                       <div className="flex items-center gap-2">
-                        {isPaid && !isShipped && !isCancelled && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Order Confirmed — Preparing in Atelier
+                        {order.status === "CANCELLED" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            {order.refundRequired
+                              ? "Order Cancelled — Refund Reconciliation Pending"
+                              : "Order Cancelled"}
                           </span>
-                        )}
-                        {isShipped && (
+                        ) : order.status === "RETURNED" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-800 border border-purple-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Returned to Atelier
+                          </span>
+                        ) : order.status === "RETURN_REQUESTED" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
+                            <Clock className="w-3.5 h-3.5" /> Return Requested — Under Review
+                          </span>
+                        ) : order.status === "DELIVERED" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Delivered to Residence
+                          </span>
+                        ) : isShipped || order.fulfillmentStatus === "SHIPPED" ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200">
                             <Truck className="w-3.5 h-3.5" /> Dispatched via {order.shipments[0]?.carrier || "Express Courier"}
                           </span>
-                        )}
-                        {isCancelled && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-800 border border-rose-200">
-                            <AlertTriangle className="w-3.5 h-3.5" /> Order Cancelled
+                        ) : order.fulfillmentStatus === "PACKED" ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-indigo-50 text-indigo-800 border border-indigo-200">
+                            <Package className="w-3.5 h-3.5" /> Packed & Staged for Dispatch
                           </span>
-                        )}
-                        {!isPaid && !isCancelled && (
+                        ) : isPaid ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Order Confirmed — Preparing in Atelier
+                          </span>
+                        ) : (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
                             <Clock className="w-3.5 h-3.5" /> Awaiting Payment Settlement
                           </span>

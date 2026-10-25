@@ -1,6 +1,6 @@
 # NEXORA Commerce — Haute Couture & Bespoke Luxury E-Commerce Platform
 
-> **Version:** 0.9.0 (Phase 4 Complete — Secure Checkout, Order Processing, Payment Integration & Stock Reservation)  
+> **Version:** 1.0.0 (Phase 5 Complete — Order Management, Customer Operations, Fulfillment, Returns & After-Sales Concierge Support)  
 > **Architecture:** Modular Monolith with Next.js 15 App Router, TypeScript Strict Mode, Tailwind CSS, Prisma ORM 6, and PostgreSQL 16
 
 ---
@@ -9,35 +9,47 @@
 
 **NEXORA Commerce** is a production-grade, multi-business e-commerce SaaS platform designed for discerning retailers, physical goods boutiques, and atelier fashion brands.
 
-In **Phase 4**, we transformed the catalog into a transactional commerce engine with authoritative pricing, concurrency-safe stock reservation, payment gateway integration, and comprehensive order lifecycle management:
+In **Phase 5**, we delivered end-to-end post-purchase operations, customer relationship management, fulfillment tracking, returns, and after-sales concierge support:
 
-- **Authoritative Database Models:** Implemented `Order`, `OrderItem`, `Address`, `Payment`, `PaymentEvent`, `StockReservation`, and `Shipment` with strict referential integrity, indexes, and immutable snapshots.
-- **Authoritative Server-Side Pricing:** All currency stored strictly in integer minor units (USD cents). Client-submitted prices and totals are never trusted; the server recomputes subtotal, tiered shipping, and destination taxes.
-- **Concurrency-Safe Stock Reservations:**
-  - PostgreSQL row locking (`FOR UPDATE`) serializes simultaneous checkout attempts.
-  - Active reservation prevents race conditions and overselling.
-  - Sweeper service automatically releases expired reservations (`PENDING` -> `EXPIRED`) and atomically restores variant stock.
-- **Sri Lankan & International Payment Architecture:**
-  - **PayHere Gateway:** Sri Lanka CBSL-approved payment provider supporting LKR and international currencies (USD, GBP, EUR) with MD5 signature validation.
-  - **Mock Sandbox Provider:** Isolated sandbox provider with HMAC-SHA256 signature verification for zero-cost automated testing, strictly disabled in production.
-  - **Webhook Idempotency:** Secure webhook processing with event deduplication (`PaymentEvent`) preventing replay attacks or duplicate captures.
-- **Client Checkout & Order History:**
-  - Luxury Editorial Checkout (`/checkout`): Multi-tier delivery selection (Standard, Express, White Glove), separate shipping/billing addresses, live summary.
-  - Confirmation Portal (`/checkout/success`): Clear order reference (`NXR-YYYY-XXXXXX`), financial breakdown, and printable invoice.
-  - Client Order History (`/account/orders` and `/account/orders/[id]`): Filterable order cards, line item snapshots, live order timeline, and self-service cancellation for pending commissions.
-- **Executive Order Fulfillment Suite (`/admin/orders`):**
-  - Atelier Order Desk (`/admin/orders`): Real-time financial metrics (Gross Volume, Commission Count, Pending Payments, In Dispatch), filter by status/payment/search.
-  - Detailed Order Inspector (`/admin/orders/[id]`): Client details, billing/shipping addresses, itemized breakdown, and audit ledger.
-  - Courier Dispatch Modal: Record carrier, tracking number, and dispatch notes with automatic `SHIPPED` status progression.
-  - Financial Safety Rules: Unpaid orders cannot be fraudulently forced to paid without authoritative gateway webhook confirmation.
+- **Complete Order Lifecycle & Dual-Status Architecture:**
+  - Implemented decoupled order state (`OrderStatus`: `PENDING`, `AWAITING_PAYMENT`, `PAID`, `PROCESSING`, `PACKED`, `SHIPPED`, `DELIVERED`, `CANCELLED`, `RETURN_REQUESTED`, `RETURNED`, `REFUNDED`) and fulfillment state (`FulfillmentStatus`: `UNFULFILLED`, `PROCESSING`, `PACKED`, `SHIPPED`, `DELIVERED`, `RETURNED`, `CANCELLED`).
+  - Enforced strict state machine transition guards preventing invalid operations (e.g. shipping unconfirmed orders, cancelling dispatched items).
+- **Courier & Shipment Management:**
+  - Shipping tracking with carrier attribution, tracking code, dispatch timestamp, and secure URL validation (strictly enforcing HTTP/HTTPS to prevent script injection).
+  - Multi-step customer-facing delivery progress timeline (`Payment Verified` -> `Atelier Preparation` -> `Dispatched` -> `Delivered`).
+- **Comprehensive Cancellation Workflows:**
+  - **Unpaid Orders:** Immediate client cancellation with atomic release of stock reservations.
+  - **Paid Unfulfilled Orders:** Registered as pending cancellation requests requiring store director review; approval restores inventory with `CANCELLATION` movements and flags orders for refund reconciliation.
+  - Dispatched or delivered commissions cannot be cancelled without initiating a return.
+- **Returns & Manual Refund Reconciliation Foundation:**
+  - `ReturnRequest` model capturing return reasons, requested quantities, inspection status, and return tracking.
+  - Strict validation preventing return requests exceeding purchased quantities (`requestedQuantity <= item.quantity`).
+  - Store inspection workflow with optional inventory restocking via `RETURN` audit ledger movements.
+  - Manual refund reconciliation workflow recording transaction references, amounts, and notes without unverified automated reversals.
+- **Clientele & Private Patron Directory (`/admin/customers`):**
+  - Authoritative directory backed by PostgreSQL aggregations: total order count and completed lifetime spend computed exclusively from confirmed, non-cancelled orders.
+  - Individual Patron Dossier (`/admin/customers/[id]`): Historical commissions, delivery addresses, concierge inquiries, and return records.
+- **Concierge & Support Ticket Architecture:**
+  - Customer ticket portal (`/account/support` and `/account/support/[id]`) and executive support desk (`/admin/support`).
+  - Support ticket isolation: clients can only view and message their own inquiries.
+  - Staff internal notes: private staff annotations (`isInternalNote: true`) masked from customer view.
+  - Distinct ticket codes (`TCK-XXXXXX`), status progression, and priority tiers (`LOW`, `NORMAL`, `HIGH`, `URGENT`).
+- **Transactional Notifications & Luxury HTML Outbox:**
+  - `Notification` model with delivery outbox pattern (`QUEUED`, `SENT`, `FAILED`).
+  - High-end dark Editorial Luxury HTML email template generator (`generateLuxuryEmailHtml`) with preheaders, gold accents, and brand styling.
+  - Development email logger adapter for non-production environments.
+- **Security Hardening:**
+  - `MockPaymentProvider` is strictly disabled in production (`NODE_ENV === "production"`) with zero bypass.
+  - E2E Playwright tests execute in development mode (`npm run dev`) where sandboxing is permitted.
 
 ---
 
-### Previous Milestone Deliverables (Phases 1–3)
+### Previous Milestone Deliverables (Phases 1–4)
 
-- **Role-Based Access Control (RBAC):** Strict 5-tier role hierarchy (`CUSTOMER`, `STAFF`, `MANAGER`, `OWNER`, `SUPERADMIN`) verified directly against PostgreSQL.
-- **Product & Variant Catalog:** Multi-image gallery, category associations, and live stock auditing.
-- **Auditable Inventory Ledger:** Append-only ledger recording all stock changes with administrator attribution.
+- **Phase 4:** Authoritative server-side pricing in minor units (cents), PostgreSQL row-locked stock reservations, Sri Lankan PayHere gateway integration, sandbox mock provider, webhook idempotency, checkout demo, order history.
+- **Phase 3:** 5-tier RBAC matrix (`CUSTOMER`, `STAFF`, `MANAGER`, `OWNER`, `SUPERADMIN`), product variant management, append-only inventory audit ledger with administrator attribution.
+- **Phase 2:** PostgreSQL-powered dynamic product catalog, multi-image galleries, category associations, seed script.
+- **Phase 1:** Next.js 15 App Router scaffolding, Editorial Luxury design system, Better Auth PostgreSQL foundation.
 
 ---
 
@@ -48,7 +60,7 @@ In **Phase 4**, we transformed the catalog into a transactional commerce engine 
 - **Styling:** Tailwind CSS 3.4 with custom Editorial Luxury design tokens, Lucide Icons, and CVA
 - **Database & ORM:** PostgreSQL 16 Alpine running in Docker, Prisma ORM 6
 - **Authentication & RBAC:** Better Auth with PostgreSQL session verification and custom RBAC guard layer (`src/lib/admin-auth.ts`)
-- **Validation:** Zod schemas for products, variants, images, and inventory adjustments
+- **Validation:** Zod schemas for products, variants, images, inventory adjustments, and tracking URLs
 - **Testing:** Vitest 3 (unit & integration tests) and Playwright 1.50 (E2E browser tests)
 
 ---
@@ -68,6 +80,10 @@ In **Phase 4**, we transformed the catalog into a transactional commerce engine 
 | `VIEW_INVENTORY` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `ADJUST_INVENTORY` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `VIEW_AUDIT_LOGS` | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `VIEW_ORDERS` | ❌ | ✅ | ✅ | ✅ | ✅ |
+| `MANAGE_ORDERS` | ❌ | ❌ | ✅ | ✅ | ✅ |
+| `VIEW_CUSTOMERS` | ❌ | ✅ | ✅ | ✅ | ✅ |
+| `MANAGE_SUPPORT` | ❌ | ✅ | ✅ | ✅ | ✅ |
 | `MANAGE_SETTINGS` | ❌ | ❌ | ❌ | ✅ | ✅ |
 
 ---
@@ -130,15 +146,20 @@ Open [http://localhost:3000](http://localhost:3000) for the storefront, or sign 
 ## 5. Automated Testing
 
 ### Unit & Integration Tests (Vitest)
-Executes 99 automated tests across 13 test files verifying RBAC matrix enforcement, product lifecycle, duplicate SKU prevention, category deletion guards, audited inventory adjustments, concurrency-safe stock reservations, authoritative order pricing, and webhook signature verification:
+Executes 145 automated tests across 17 test files verifying RBAC matrix enforcement, product lifecycle, duplicate SKU prevention, category deletion guards, audited inventory adjustments, concurrency-safe stock reservations, authoritative order pricing, webhook signature verification, Phase 5 order transitions, shipment tracking URL validation, cancellation workflows, return quantity limits, support ticket privacy, and authoritative customer spend aggregations:
 ```powershell
-npm run test
+npm run test -- --run
 ```
 
 ### End-to-End Browser Tests (Playwright)
-Executes 13 full browser tests across desktop and mobile viewports, including unauthorized access denial, customer rejection, store director authentication, product creation, stock adjustment, audit ledger entry, full customer checkout, order confirmation, client order history, admin order filtering, and shipment tracking dispatch:
+Executes 15 full browser tests across desktop and mobile viewports, including unauthorized access denial, customer rejection, store director authentication, product creation, stock adjustment, audit ledger entry, full customer checkout, order confirmation, client order history, admin order filtering, shipment tracking dispatch, customer support ticket creation, patron dossier inspection, and concierge support replies:
 ```powershell
-npx playwright test
+npx playwright test e2e/storefront.spec.ts e2e/admin.spec.ts e2e/orders.spec.ts e2e/operations.spec.ts
+```
+
+### Visual Verification Screenshots Capture
+```powershell
+npx playwright test e2e/screenshots.spec.ts
 ```
 
 ---
@@ -164,3 +185,10 @@ Visual verification artifacts are saved to:
 - `13-admin-inventory-stock.png` — Stock control table with low-stock alerts
 - `14-admin-inventory-audit-ledger.png` — Immutable audit trail with administrator attribution
 - `15-admin-orders-list.png` — Atelier Order Desk with financial overview and status metrics
+- `16-admin-order-detail.png` — Admin detailed order view with line item snapshots and tracking controls
+- `17-account-orders-history.png` — Client account order history with status badges
+- `18-admin-customers-list.png` — Clientele & Private Patrons directory with PostgreSQL computed spend
+- `19-admin-customer-dossier.png` — Patron Dossier with historical acquisitions and inquiries
+- `20-admin-support-desk.png` — Concierge & Support Desk with conversation timeline and staff notes
+- `21-account-order-timeline.png` — Client order details with 4-step delivery progress timeline
+- `22-account-support-tickets.png` — Client Concierge & Support portal with active inquiries

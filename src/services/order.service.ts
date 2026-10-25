@@ -271,6 +271,12 @@ export async function getOrderForCustomer(
         orderBy: { createdAt: "desc" },
       },
       stockReservations: true,
+      returnRequests: {
+        orderBy: { createdAt: "desc" },
+      },
+      supportTickets: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -319,13 +325,17 @@ export async function getCustomerOrderHistory(userId: string) {
         take: 1,
         orderBy: { createdAt: "desc" },
       },
+      returnRequests: {
+        take: 1,
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 }
 
 /**
  * Allows a customer to cancel an eligible order prior to fulfillment.
- * Releases reserved or allocated stock back to available inventory.
+ * Releases reserved stock and handles paid orders as refund-required workflows.
  */
 export async function cancelCustomerOrder(
   orderId: string,
@@ -362,14 +372,19 @@ export async function cancelCustomerOrder(
     // 1. Release stock back to catalog
     await releaseReservations(order.id, reason, tx);
 
-    // 2. Update order status
+    // 2. Update order status: paid orders are NOT marked "REFUNDED" immediately;
+    // they enter a refundRequired workflow for reconciliation.
     const updated = await tx.order.update({
       where: { id: order.id },
       data: {
         status: "CANCELLED",
+        fulfillmentStatus: "CANCELLED",
         cancelReason: reason,
         cancelledAt: new Date(),
-        paymentStatus: order.paymentStatus === "PAID" ? "REFUNDED" : "UNPAID",
+        cancellationRequested: false,
+        refundRequired: order.paymentStatus === "PAID",
+        refundAmountInCents: order.paymentStatus === "PAID" ? order.totalInCents : null,
+        refundReason: order.paymentStatus === "PAID" ? "Client requested cancellation" : null,
       },
       include: {
         items: true,

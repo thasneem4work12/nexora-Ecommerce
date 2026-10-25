@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi, AuthError } from "@/lib/admin-auth";
 import { getAdminOrders, getAdminOrderMetrics } from "@/services/admin-order.service";
-import type { OrderStatus, PaymentStatus } from "@prisma/client";
+import type { OrderStatus, PaymentStatus, FulfillmentStatus } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,14 +11,25 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || undefined;
     const status = (searchParams.get("status") as OrderStatus) || undefined;
     const paymentStatus = (searchParams.get("paymentStatus") as PaymentStatus) || undefined;
+    const fulfillmentStatus = (searchParams.get("fulfillmentStatus") as FulfillmentStatus) || undefined;
+    const sortBy = (searchParams.get("sortBy") as "newest" | "oldest") || "newest";
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
     const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 20;
+
+    const startDate = startDateParam ? new Date(startDateParam) : undefined;
+    const endDate = endDateParam ? new Date(endDateParam) : undefined;
 
     const [ordersResult, metrics] = await Promise.all([
       getAdminOrders({
         search,
         status,
         paymentStatus,
+        fulfillmentStatus,
+        sortBy,
+        startDate: startDate && !isNaN(startDate.getTime()) ? startDate : undefined,
+        endDate: endDate && !isNaN(endDate.getTime()) ? endDate : undefined,
         page: isNaN(page) ? 1 : page,
         limit: isNaN(limit) ? 20 : limit,
       }),

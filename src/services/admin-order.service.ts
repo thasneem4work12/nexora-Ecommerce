@@ -1,18 +1,30 @@
 import { prisma } from "@/lib/prisma";
-import type { OrderStatus, PaymentStatus, Prisma, ShipmentStatus } from "@prisma/client";
+import type {
+  OrderStatus,
+  PaymentStatus,
+  FulfillmentStatus,
+  Prisma,
+  ShipmentStatus,
+} from "@prisma/client";
 import { releaseReservations } from "./reservation.service";
 import type { OrderWithDetails } from "@/types/order";
+import { updateOrderShipment as updateShipmentService } from "./shipment.service";
+import { notifyCancellationDecision } from "./notification.service";
 
 export interface AdminOrderFilter {
   search?: string;
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
+  fulfillmentStatus?: FulfillmentStatus;
+  startDate?: Date;
+  endDate?: Date;
+  sortBy?: "newest" | "oldest";
   page?: number;
   limit?: number;
 }
 
 /**
- * Retrieves paginated orders for the administrator dashboard with search and status filters.
+ * Retrieves paginated orders for the administrator dashboard with search, status, fulfillment, date range, and sort options.
  */
 export async function getAdminOrders(filter: AdminOrderFilter = {}) {
   const page = Math.max(1, filter.page ?? 1);
@@ -29,6 +41,20 @@ export async function getAdminOrders(filter: AdminOrderFilter = {}) {
     where.paymentStatus = filter.paymentStatus;
   }
 
+  if (filter.fulfillmentStatus) {
+    where.fulfillmentStatus = filter.fulfillmentStatus;
+  }
+
+  if (filter.startDate || filter.endDate) {
+    where.createdAt = {};
+    if (filter.startDate) {
+      where.createdAt.gte = filter.startDate;
+    }
+    if (filter.endDate) {
+      where.createdAt.lte = filter.endDate;
+    }
+  }
+
   if (filter.search && filter.search.trim().length > 0) {
     const term = filter.search.trim();
     where.OR = [
@@ -40,13 +66,17 @@ export async function getAdminOrders(filter: AdminOrderFilter = {}) {
     ];
   }
 
+  const orderBy: Prisma.OrderOrderByWithRelationInput = {
+    createdAt: filter.sortBy === "oldest" ? "asc" : "desc",
+  };
+
   const [total, orders] = await prisma.$transaction([
     prisma.order.count({ where }),
     prisma.order.findMany({
       where,
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       include: {
         user: { select: { id: true, name: true, email: true } },
         shippingAddress: true,
@@ -56,6 +86,10 @@ export async function getAdminOrders(filter: AdminOrderFilter = {}) {
           orderBy: { createdAt: "desc" },
         },
         shipments: {
+          take: 1,
+          orderBy: { createdAt: "desc" },
+        },
+        returnRequests: {
           take: 1,
           orderBy: { createdAt: "desc" },
         },
@@ -75,7 +109,7 @@ export async function getAdminOrders(filter: AdminOrderFilter = {}) {
 }
 
 /**
- * Retrieves single order with complete audit trail, payments, events, and reservations.
+ * Retrieves single order with complete audit trail, payments, events, reservations, shipments, and return requests.
  */
 export async function getAdminOrderById(orderId: string): Promise<OrderWithDetails | null> {
   const order = await prisma.order.findUnique({
@@ -103,6 +137,12 @@ export async function getAdminOrderById(orderId: string): Promise<OrderWithDetai
       },
       stockReservations: {
         include: { variant: true },
+        orderBy: { createdAt: "desc" },
+      },
+      returnRequests: {
+        orderBy: { createdAt: "desc" },
+      },
+      supportTickets: {
         orderBy: { createdAt: "desc" },
       },
     },
@@ -133,7 +173,7 @@ export async function updateAdminOrderStatus(
     }
 
     // Security Guard: Prevent invalid order and payment state transitions
-    const fulfillmentStatuses: OrderStatus[] = ["PROCESSING", "SHIPPED", "DELIVERED"];
+    const fulfillmentStatuses: OrderStatus[] = ["PROCESSING", "PACKED", "SHIPPED", "DELIVERED"];
 
     // 1. Prevent advancing cancelled orders to fulfillment
     if (order.status === "CANCELLED" && (fulfillmentStatuses.includes(newStatus) || newStatus === "PAID")) {
@@ -156,20 +196,39 @@ export async function updateAdminOrderStatus(
       );
     }
 
+    // 4. Prevent cancelling shipped or delivered orders without return workflow
+    if (newStatus === "CANCELLED" && (order.status === "SHIPPED" || order.status === "DELIVERED")) {
+      throw new Error(
+        `Invalid order transition: Order ${order.orderNumber} has already been dispatched (${order.status}). Cancellation is forbidden; please initiate a Return Request.`
+      );
+    }
+
     // If transitioning to CANCELLED, release stock reservations if active
     if (newStatus === "CANCELLED" && order.status !== "CANCELLED") {
       await releaseReservations(order.id, adminNotes || "Cancelled by store director", tx);
     }
 
+    // Synchronize fulfillmentStatus based on new status
+    let targetFulfillmentStatus: FulfillmentStatus = order.fulfillmentStatus;
+    if (newStatus === "PROCESSING") targetFulfillmentStatus = "PROCESSING";
+    else if (newStatus === "PACKED") targetFulfillmentStatus = "PACKED";
+    else if (newStatus === "SHIPPED") targetFulfillmentStatus = "SHIPPED";
+    else if (newStatus === "DELIVERED") targetFulfillmentStatus = "DELIVERED";
+    else if (newStatus === "RETURNED") targetFulfillmentStatus = "RETURNED";
+    else if (newStatus === "CANCELLED") targetFulfillmentStatus = "CANCELLED";
+
     const updated = await tx.order.update({
       where: { id: order.id },
       data: {
         status: newStatus,
+        fulfillmentStatus: targetFulfillmentStatus,
         notes: adminNotes
           ? `${order.notes ? `${order.notes}\n` : ""}[Director Note ${new Date().toISOString().split("T")[0]}]: ${adminNotes}`
           : order.notes,
         cancelledAt: newStatus === "CANCELLED" ? new Date() : order.cancelledAt,
         cancelReason: newStatus === "CANCELLED" ? adminNotes || "Director administrative cancellation" : order.cancelReason,
+        refundRequired: newStatus === "CANCELLED" && order.paymentStatus === "PAID",
+        refundAmountInCents: newStatus === "CANCELLED" && order.paymentStatus === "PAID" ? order.totalInCents : order.refundAmountInCents,
       },
       include: {
         items: true,
@@ -181,109 +240,94 @@ export async function updateAdminOrderStatus(
       },
     });
 
+    if (newStatus === "CANCELLED" && order.userId) {
+      await notifyCancellationDecision(order.id, order.userId, order.orderNumber, "APPROVED", adminNotes);
+    }
+
     return updated as OrderWithDetails;
   });
 }
 
 /**
- * Creates or updates shipment information and automatically advances fulfillment state.
+ * Creates or updates shipment information and synchronizes fulfillment state.
  */
 export async function updateOrderShipment(
   orderId: string,
   input: {
     carrier: string;
     trackingNumber: string;
+    trackingUrl?: string;
     status?: ShipmentStatus;
     notes?: string;
   }
 ) {
-  return await prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { shipments: true },
-    });
-
-    if (!order) {
-      throw new Error(`Order not found: ${orderId}`);
-    }
-
-    if (order.paymentStatus !== "PAID") {
-      throw new Error(
-        `Cannot dispatch shipment for order ${order.orderNumber}: Payment is unverified (status: "${order.paymentStatus}").`
-      );
-    }
-
-    if (order.status === "CANCELLED") {
-      throw new Error(
-        `Cannot dispatch shipment for cancelled order ${order.orderNumber}.`
-      );
-    }
-
-    const existingShipment = order.shipments[0];
-    let shipment;
-
-    if (existingShipment) {
-      shipment = await tx.shipment.update({
-        where: { id: existingShipment.id },
-        data: {
-          carrier: input.carrier.trim(),
-          trackingNumber: input.trackingNumber.trim(),
-          status: input.status || "IN_TRANSIT",
-          notes: input.notes?.trim() || existingShipment.notes,
-          shippedAt: existingShipment.shippedAt || new Date(),
-        },
-      });
-    } else {
-      shipment = await tx.shipment.create({
-        data: {
-          orderId: order.id,
-          carrier: input.carrier.trim(),
-          trackingNumber: input.trackingNumber.trim(),
-          status: input.status || "IN_TRANSIT",
-          shippedAt: new Date(),
-          notes: input.notes?.trim() || null,
-        },
-      });
-    }
-
-    // Advance order status to SHIPPED if currently PAID or PROCESSING
-    if (order.status === "PAID" || order.status === "PROCESSING") {
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: "SHIPPED" },
-      });
-    }
-
-    return shipment;
+  return await updateShipmentService({
+    orderId,
+    carrier: input.carrier,
+    trackingNumber: input.trackingNumber,
+    trackingUrl: input.trackingUrl,
+    status: input.status,
+    notes: input.notes,
   });
 }
 
 /**
- * Computes high-level executive order metrics for the administration dashboard.
+ * Computes high-level executive order and operational metrics from PostgreSQL.
  */
 export async function getAdminOrderMetrics() {
   const [
     totalOrders,
     paidOrders,
-    pendingFulfillment,
+    ordersAwaitingFulfillment,
     shippedOrders,
+    completedOrders,
+    openSupportTickets,
+    pendingReturnRequests,
     revenueData,
   ] = await prisma.$transaction([
+    // 1. Total orders placed
     prisma.order.count(),
+    // 2. Paid orders
     prisma.order.count({ where: { paymentStatus: "PAID" } }),
-    prisma.order.count({ where: { status: { in: ["PAID", "PROCESSING"] } } }),
-    prisma.order.count({ where: { status: "SHIPPED" } }),
+    // 3. Orders awaiting fulfillment (paid, but unfulfilled/processing/packed)
+    prisma.order.count({
+      where: {
+        paymentStatus: "PAID",
+        fulfillmentStatus: { in: ["UNFULFILLED", "PROCESSING", "PACKED"] },
+      },
+    }),
+    // 4. Shipped orders currently in transit
+    prisma.order.count({ where: { fulfillmentStatus: "SHIPPED" } }),
+    // 5. Completed orders safely delivered
+    prisma.order.count({ where: { fulfillmentStatus: "DELIVERED" } }),
+    // 6. Open support tickets awaiting resolution
+    prisma.supportTicket.count({
+      where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_FOR_CUSTOMER"] } },
+    }),
+    // 7. Pending return requests awaiting inspection
+    prisma.returnRequest.count({ where: { status: "PENDING" } }),
+    // 8. Authoritative revenue from verified paid orders excluding cancellations
     prisma.order.aggregate({
-      where: { paymentStatus: "PAID" },
+      where: {
+        paymentStatus: "PAID",
+        status: { not: "CANCELLED" },
+      },
       _sum: { totalInCents: true },
     }),
   ]);
 
+  const confirmedRevenueInCents = revenueData._sum.totalInCents || 0;
+
   return {
     totalOrders,
     paidOrders,
-    pendingFulfillment,
+    ordersAwaitingFulfillment,
+    pendingFulfillment: ordersAwaitingFulfillment,
     shippedOrders,
-    totalRevenueInCents: revenueData._sum.totalInCents || 0,
+    completedOrders,
+    openSupportTickets,
+    pendingReturnRequests,
+    confirmedRevenueInCents,
+    totalRevenueInCents: confirmedRevenueInCents,
   };
 }

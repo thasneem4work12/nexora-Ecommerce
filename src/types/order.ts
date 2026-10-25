@@ -10,6 +10,13 @@ import type {
   PaymentStatus,
   StockReservationStatus,
   ShipmentStatus,
+  FulfillmentStatus,
+  ReturnStatus,
+  RefundStatus,
+  TicketStatus,
+  TicketPriority,
+  NotificationType,
+  DeliveryStatus,
 } from "@prisma/client";
 
 export type {
@@ -17,6 +24,13 @@ export type {
   PaymentStatus,
   StockReservationStatus,
   ShipmentStatus,
+  FulfillmentStatus,
+  ReturnStatus,
+  RefundStatus,
+  TicketStatus,
+  TicketPriority,
+  NotificationType,
+  DeliveryStatus,
 };
 
 export interface ShippingAddressInput {

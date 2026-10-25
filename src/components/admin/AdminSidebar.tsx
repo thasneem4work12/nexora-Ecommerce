@@ -10,6 +10,8 @@ import {
   Boxes,
   History,
   ShoppingBag,
+  Users,
+  LifeBuoy,
   Settings,
   ExternalLink,
   LogOut,
@@ -44,6 +46,16 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       href: "/admin/orders",
       label: "Orders & Fulfillment",
       icon: ShoppingBag,
+    },
+    {
+      href: "/admin/customers",
+      label: "Clients & Patrons",
+      icon: Users,
+    },
+    {
+      href: "/admin/support",
+      label: "Concierge & Support",
+      icon: LifeBuoy,
     },
     {
       href: "/admin/products",

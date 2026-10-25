@@ -34,6 +34,12 @@ model User {
   inventoryMovements InventoryMovement[]
   orders             Order[]
   addresses          Address[]
+  returnRequests     ReturnRequest[]     @relation("UserReturns")
+  reviewedReturns    ReturnRequest[]     @relation("ReviewedReturns")
+  supportTickets     SupportTicket[]     @relation("UserTickets")
+  assignedTickets    SupportTicket[]     @relation("AssignedTickets")
+  ticketMessages     TicketMessage[]
+  notifications      Notification[]
 
   @@map("users")
 }
@@ -236,10 +242,23 @@ enum OrderStatus {
   AWAITING_PAYMENT
   PAID
   PROCESSING
+  PACKED
   SHIPPED
   DELIVERED
   CANCELLED
+  RETURN_REQUESTED
+  RETURNED
   REFUNDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PROCESSING
+  PACKED
+  SHIPPED
+  DELIVERED
+  RETURNED
+  CANCELLED
 }
 
 enum PaymentStatus {
@@ -261,10 +280,58 @@ enum StockReservationStatus {
 enum ShipmentStatus {
   PENDING
   PROCESSING
+  PACKED
   IN_TRANSIT
   DELIVERED
   FAILED
   RETURNED
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum RefundStatus {
+  NONE
+  PENDING_MANUAL_REVIEW
+  PROCESSED
+  REJECTED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  PAYMENT_CONFIRMED
+  ORDER_SHIPPED
+  ORDER_DELIVERED
+  CANCELLATION_DECISION
+  RETURN_DECISION
+  SUPPORT_TICKET_REPLY
+  GENERAL
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
 }
 
 model Address {
@@ -292,39 +359,52 @@ model Address {
 }
 
 model Order {
-  id                 String             @id @default(cuid())
-  orderNumber        String             @unique
-  userId             String?
-  guestEmail         String?
-  guestName          String?
-  status             OrderStatus        @default(PENDING)
-  currency           String             @default("USD")
-  subtotalInCents    Int
-  shippingInCents    Int                @default(0)
-  taxInCents         Int                @default(0)
-  discountInCents    Int                @default(0)
-  totalInCents       Int
-  paymentStatus      PaymentStatus      @default(UNPAID)
-  shippingAddressId  String?
-  billingAddressId   String?
-  shippingMethod     String             @default("STANDARD")
-  notes              String?            @db.Text
-  cancelReason       String?
-  cancelledAt        DateTime?
-  paidAt             DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                      String             @id @default(cuid())
+  orderNumber             String             @unique
+  userId                  String?
+  guestEmail              String?
+  guestName               String?
+  status                  OrderStatus        @default(PENDING)
+  fulfillmentStatus       FulfillmentStatus  @default(UNFULFILLED)
+  currency                String             @default("USD")
+  subtotalInCents         Int
+  shippingInCents         Int                @default(0)
+  taxInCents              Int                @default(0)
+  discountInCents         Int                @default(0)
+  totalInCents            Int
+  paymentStatus           PaymentStatus      @default(UNPAID)
+  shippingAddressId       String?
+  billingAddressId        String?
+  shippingMethod          String             @default("STANDARD")
+  notes                   String?            @db.Text
+  cancelReason            String?
+  cancelledAt             DateTime?
+  cancellationRequested   Boolean            @default(false)
+  cancellationReason      String?
+  cancellationRequestedAt DateTime?
+  cancellationRequestedBy String?            // "CUSTOMER" | "STAFF"
+  refundRequired          Boolean            @default(false)
+  refundAmountInCents     Int?
+  refundReason            String?
+  refundedAt              DateTime?
+  paidAt                  DateTime?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
-  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  shippingAddress    Address?           @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id], onDelete: SetNull)
-  billingAddress     Address?           @relation("OrderBillingAddress", fields: [billingAddressId], references: [id], onDelete: SetNull)
-  items              OrderItem[]
-  payments           Payment[]
-  shipments          Shipment[]
-  stockReservations  StockReservation[]
+  user                    User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shippingAddress         Address?           @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id], onDelete: SetNull)
+  billingAddress          Address?           @relation("OrderBillingAddress", fields: [billingAddressId], references: [id], onDelete: SetNull)
+  items                   OrderItem[]
+  payments                Payment[]
+  shipments               Shipment[]
+  stockReservations       StockReservation[]
+  returnRequests          ReturnRequest[]
+  supportTickets          SupportTicket[]
+  notifications           Notification[]
 
   @@index([userId])
   @@index([status])
+  @@index([fulfillmentStatus])
   @@index([paymentStatus])
   @@index([orderNumber])
   @@index([createdAt])
@@ -348,6 +428,7 @@ model OrderItem {
   order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product         Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  returnRequests  ReturnRequest[]
 
   @@index([orderId])
   @@index([productId])
@@ -428,8 +509,10 @@ model Shipment {
   orderId           String
   trackingNumber    String?
   carrier           String?        // e.g. "DHL Express", "FedEx", "Boutique Courier"
+  trackingUrl       String?        // Secure validated tracking link
   status            ShipmentStatus @default(PENDING)
   shippedAt         DateTime?
+  dispatchedAt      DateTime?
   estimatedDelivery DateTime?
   deliveredAt       DateTime?
   notes             String?
@@ -442,6 +525,107 @@ model Shipment {
   @@index([trackingNumber])
   @@index([status])
   @@map("shipments")
+}
+
+model ReturnRequest {
+  id                  String       @id @default(cuid())
+  returnNumber        String       @unique
+  orderId             String
+  orderItemId         String?
+  userId              String
+  requestedQuantity   Int          @default(1)
+  reason              String       @db.Text
+  status              ReturnStatus @default(PENDING)
+  refundAmountInCents Int?
+  refundStatus        RefundStatus @default(NONE)
+  adminNotes          String?      @db.Text
+  resolutionNotes     String?      @db.Text
+  reviewedByUserId    String?
+  reviewedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  order               Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItem           OrderItem?   @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  user                User         @relation("UserReturns", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedByUser      User?        @relation("ReviewedReturns", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+  @@index([refundStatus])
+  @@index([returnNumber])
+  @@map("return_requests")
+}
+
+model SupportTicket {
+  id              String         @id @default(cuid())
+  ticketNumber    String         @unique
+  userId          String
+  orderId         String?
+  subject         String
+  description     String         @db.Text
+  status          TicketStatus   @default(OPEN)
+  priority        TicketPriority @default(NORMAL)
+  assignedStaffId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user            User           @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  order           Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  assignedStaff   User?          @relation("AssignedTickets", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  messages        TicketMessage[]
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([priority])
+  @@index([ticketNumber])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id             String        @id @default(cuid())
+  ticketId       String
+  senderId       String
+  senderRole     Role          @default(CUSTOMER)
+  message        String        @db.Text
+  isInternalNote Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+
+  ticket         SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@map("ticket_messages")
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  orderId        String?
+  ticketId       String?
+  type           NotificationType @default(GENERAL)
+  title          String
+  message        String           @db.Text
+  emailTo        String?
+  emailSubject   String?
+  emailBody      String?          @db.Text
+  isRead         Boolean          @default(false)
+  deliveryStatus DeliveryStatus   @default(SENT)
+  deliveryError  String?
+  deliveredAt    DateTime?
+  createdAt      DateTime         @default(now())
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order          Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([type])
+  @@index([isRead])
+  @@map("notifications")
 }
 
 

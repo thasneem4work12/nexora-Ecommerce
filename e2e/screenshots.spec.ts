@@ -12,6 +12,8 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
   });
 
   test("capture all verification screenshots", async ({ browser }) => {
+    test.setTimeout(120000);
+
     // 1. Desktop context
     const desktopContext = await browser.newContext({
       viewport: { width: 1440, height: 900 },
@@ -88,8 +90,13 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "15-admin-orders-list.png") });
 
     // 16: Admin Order Detail (if any order exists)
+    let sampleOrderId = "";
     const firstOrderLink = page.locator('a[href^="/admin/orders/"]').first();
     if (await firstOrderLink.isVisible()) {
+      const href = await firstOrderLink.getAttribute("href");
+      if (href) {
+        sampleOrderId = href.replace("/admin/orders/", "");
+      }
       await firstOrderLink.click();
       await page.waitForLoadState("networkidle");
       await page.screenshot({ path: path.join(SCREENSHOT_DIR, "16-admin-order-detail.png") });
@@ -98,6 +105,32 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     // 17: Client Account Orders
     await page.goto("/account/orders", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "17-account-orders-history.png") });
+
+    // 18: Admin Customers & Patrons Directory
+    await page.goto("/admin/customers", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "18-admin-customers-list.png") });
+
+    // 19: Admin Patron Dossier
+    const firstCustomerLink = page.locator('a[href^="/admin/customers/"]').first();
+    if (await firstCustomerLink.isVisible()) {
+      await firstCustomerLink.click();
+      await page.waitForLoadState("networkidle");
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, "19-admin-customer-dossier.png") });
+    }
+
+    // 20: Admin Concierge & Support Desk
+    await page.goto("/admin/support", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "20-admin-support-desk.png") });
+
+    // 21: Client Account Order Detail & Delivery Timeline
+    if (sampleOrderId) {
+      await page.goto(`/account/orders/${sampleOrderId}`, { waitUntil: "networkidle" });
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, "21-account-order-timeline.png") });
+    }
+
+    // 22: Client Concierge & Support Desk
+    await page.goto("/account/support", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "22-account-support-tickets.png") });
 
     await desktopContext.close();
 

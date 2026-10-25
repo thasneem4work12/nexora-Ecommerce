@@ -14,6 +14,7 @@ import {
   Shield,
   ArrowRight,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 
 export default function AccountPage() {
@@ -144,6 +145,20 @@ export default function AccountPage() {
             <p className="text-xs text-charcoal-500 leading-relaxed">
               No private delivery addresses on file yet. Your primary address will be saved securely upon your first checkout.
             </p>
+          </div>
+
+          <div className="bg-canvas-surface border border-border-default p-6 space-y-4">
+            <h2 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold pb-3 border-b border-border-subtle flex items-center">
+              <MessageSquare className="w-4 h-4 mr-2 text-bronze" /> Concierge & Inquiries
+            </h2>
+            <p className="text-xs text-charcoal-500 leading-relaxed">
+              Connect directly with our atelier client liaisons for sizing, delivery updates, and bespoke commissions.
+            </p>
+            <Link href="/account/support" className="block pt-1">
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                Open Concierge Desk <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+              </Button>
+            </Link>
           </div>
         </div>
 

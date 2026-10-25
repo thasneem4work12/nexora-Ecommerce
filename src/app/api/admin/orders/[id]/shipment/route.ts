@@ -11,7 +11,7 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
 
-    const { carrier, trackingNumber, status, notes } = body;
+    const { carrier, trackingNumber, trackingUrl, status, notes } = body;
 
     if (!carrier || !trackingNumber) {
       return NextResponse.json(
@@ -26,6 +26,7 @@ export async function POST(
     const shipment = await updateOrderShipment(id, {
       carrier,
       trackingNumber,
+      trackingUrl,
       status,
       notes,
     });

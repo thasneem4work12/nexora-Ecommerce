@@ -15,17 +15,17 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   isAvailable(): boolean {
-    // Strictly isolate mock provider from production unless explicitly enabled in sandbox/testing
-    if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true") {
+    // Strictly isolate mock provider from production
+    if (process.env.NODE_ENV === "production") {
       return false;
     }
     return true;
   }
 
   private assertEnvironment() {
-    if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true") {
+    if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "Security violation: Mock payment provider cannot be invoked in production."
+        "Security violation: Mock payment provider is strictly disabled in production environments. Production must never allow mock payments."
       );
     }
   }
@@ -64,10 +64,7 @@ export class MockPaymentProvider implements PaymentProvider {
       return false;
     }
 
-    if (
-      (process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_PAYMENT === "true") &&
-      signature === "simulate_dev_client"
-    ) {
+    if (process.env.NODE_ENV !== "production" && signature === "simulate_dev_client") {
       return true;
     }
 

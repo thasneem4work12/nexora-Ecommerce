@@ -80,7 +80,7 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
     await page.getByRole("link", { name: /Details/i }).first().click();
     await expect(page).toHaveURL(/.*account\/orders\/.+/);
     await expect(page.getByText(createdOrderNumber)).toBeVisible();
-    await expect(page.getByText(/Order Reference/i)).toBeVisible();
+    await expect(page.getByText(/Commission Record/i)).toBeVisible();
   });
 
   test("store director logs in to /admin/orders, filters orders, and updates shipment tracking", async ({
@@ -105,7 +105,7 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
 
     // Verify metrics row
     await expect(page.getByText(/Gross Revenue/i)).toBeVisible();
-    await expect(page.getByText(/Total Orders/i)).toBeVisible();
+    await expect(page.getByText("Total Orders", { exact: true })).toBeVisible();
 
     // 4. Click Manage on the first order
     const manageBtn = page.getByRole("link", { name: /Manage/i }).first();
