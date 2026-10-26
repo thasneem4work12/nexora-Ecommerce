@@ -25,11 +25,21 @@ const config: Config = {
           DEFAULT: "var(--accent-bronze)",
           dark: "var(--accent-bronze-dark)",
         },
+        accent: {
+          light: "var(--accent-bronze-light)",
+          DEFAULT: "var(--accent-bronze)",
+          dark: "var(--accent-bronze-dark)",
+        },
         border: {
           subtle: "var(--border-subtle)",
           DEFAULT: "var(--border-default)",
           strong: "var(--border-strong)",
         },
+      },
+      borderRadius: {
+        btn: "var(--radius-btn, 0px)",
+        card: "var(--radius-card, 0px)",
+        badge: "var(--radius-badge, 0px)",
       },
       fontFamily: {
         serif: ["var(--font-serif)", "Playfair Display", "Cinzel", "Georgia", "serif"],

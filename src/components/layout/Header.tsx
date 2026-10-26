@@ -3,18 +3,31 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, User as UserIcon, Menu, X, Search } from "lucide-react";
+import { ShoppingBag, User as UserIcon, Menu, X, Search, Eye, ExternalLink } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import type { StoreAppearanceConfig } from "@/types/theme";
 
-export function Header() {
+interface HeaderProps {
+  appearance?: (StoreAppearanceConfig & { isPreview?: boolean; hasDraft?: boolean }) | null;
+}
+
+export function Header({ appearance }: HeaderProps) {
   const pathname = usePathname();
   const { cart, openCart } = useCart();
   const { data: session } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const storeName = appearance?.storeName || "NEXORA";
+  const storeTagline = appearance?.storeTagline || "Haute Couture";
+  const showAnnouncement = appearance?.announcementEnabled ?? true;
+  const announcementText =
+    appearance?.announcementText || "Complimentary Worldwide Delivery on Orders Over $150";
+  const announcementLink = appearance?.announcementLink || "/products";
+  const isPreview = appearance?.isPreview || false;
 
   const navLinks = [
     { href: "/products", label: "Catalog" },
@@ -23,12 +36,57 @@ export function Header() {
     { href: "/products?category=accessories", label: "Accessories" },
   ];
 
+  const handleExitPreview = async () => {
+    try {
+      await fetch("/api/admin/appearance/preview", { method: "DELETE" });
+      window.location.href = window.location.pathname;
+    } catch {
+      window.location.href = "/";
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 w-full bg-canvas-primary/95 backdrop-blur-md border-b border-border-subtle transition-all">
-      {/* Top Luxury Announcement Bar */}
-      <div className="bg-charcoal-900 text-canvas-primary text-[11px] tracking-luxury uppercase py-2 px-4 text-center font-medium">
-        <span>Complimentary Worldwide Delivery on Orders Over $150</span>
-      </div>
+      {/* Admin Preview Mode Banner */}
+      {isPreview && (
+        <div className="bg-amber-500 text-black px-4 py-1.5 text-xs font-semibold flex items-center justify-between shadow-sm">
+          <div className="flex items-center space-x-2">
+            <Eye className="w-4 h-4 animate-pulse" />
+            <span>
+              Preview Mode: <strong>{appearance?.activeThemeId}</strong>{" "}
+              {appearance?.hasDraft ? "(Unpublished Draft Changes)" : "(Base Theme Preview)"}
+            </span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Link
+              href="/admin/appearance"
+              className="hover:underline flex items-center space-x-1"
+            >
+              <span>Appearance Studio</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+            <button
+              onClick={handleExitPreview}
+              className="bg-black/15 hover:bg-black/25 px-2 py-0.5 rounded text-[11px] uppercase tracking-wider"
+            >
+              Exit Preview
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Announcement Bar */}
+      {showAnnouncement && announcementText && (
+        <div className="bg-charcoal-900 text-canvas-primary text-[11px] tracking-luxury uppercase py-2 px-4 text-center font-medium">
+          {announcementLink ? (
+            <Link href={announcementLink} className="hover:text-bronze transition-colors">
+              <span>{announcementText}</span>
+            </Link>
+          ) : (
+            <span>{announcementText}</span>
+          )}
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -43,15 +101,28 @@ export function Header() {
             </button>
           </div>
 
-          {/* Brand Logo */}
+          {/* Brand Logo / Title */}
           <div className="flex items-center">
             <Link href="/" className="flex flex-col items-center sm:items-start group">
-              <span className="text-2xl sm:text-3xl font-serif tracking-[0.25em] text-charcoal-900 uppercase font-normal transition-colors group-hover:text-bronze">
-                NEXORA
-              </span>
-              <span className="text-[9px] tracking-[0.35em] text-charcoal-500 uppercase -mt-1 font-light">
-                Haute Couture
-              </span>
+              {appearance?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={appearance.logoUrl}
+                  alt={storeName}
+                  className="h-8 max-h-8 object-contain"
+                />
+              ) : (
+                <>
+                  <span className="text-2xl sm:text-3xl font-serif tracking-[0.25em] text-charcoal-900 uppercase font-normal transition-colors group-hover:text-bronze">
+                    {storeName}
+                  </span>
+                  {storeTagline && (
+                    <span className="text-[9px] tracking-[0.35em] text-charcoal-500 uppercase -mt-1 font-light">
+                      {storeTagline}
+                    </span>
+                  )}
+                </>
+              )}
             </Link>
           </div>
 
@@ -100,7 +171,7 @@ export function Header() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search catalog..."
                     autoFocus
-                    className="w-36 sm:w-56 px-3 py-1.5 bg-canvas-surface border border-border-default text-xs tracking-wider text-charcoal-900 focus:outline-none focus:border-bronze"
+                    className="w-36 sm:w-56 px-3 py-1.5 bg-canvas-surface border border-border-default text-xs tracking-wider text-charcoal-900 focus:outline-none focus:border-bronze rounded-btn"
                   />
                   <button
                     type="button"
@@ -126,7 +197,7 @@ export function Header() {
             {session?.user ? (
               <Link
                 href="/account"
-                className="flex items-center space-x-2 text-charcoal-700 hover:text-bronze transition-colors py-1 px-2 border border-transparent hover:border-border-default"
+                className="flex items-center space-x-2 text-charcoal-700 hover:text-bronze transition-colors py-1 px-2 border border-transparent hover:border-border-default rounded-btn"
                 aria-label="My Account"
               >
                 <div className="w-7 h-7 rounded-full bg-bronze/10 text-bronze flex items-center justify-center font-medium text-xs">

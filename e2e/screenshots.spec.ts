@@ -12,7 +12,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
   });
 
   test("capture all verification screenshots", async ({ browser }) => {
-    test.setTimeout(120000);
+    test.setTimeout(360000);
 
     // 1. Desktop context
     const desktopContext = await browser.newContext({
@@ -132,6 +132,66 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.goto("/account/support", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "22-account-support-tickets.png") });
 
+    // 23: Theme 1 Editorial Luxury (Default)
+    await page.goto("/?previewTheme=editorial-luxury", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "23-theme-editorial-luxury-homepage.png") });
+
+    // 24: Theme 1 Catalog
+    await page.goto("/products", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "24-theme-editorial-luxury-catalog.png") });
+
+    // 25: Theme 2 Midnight Noir Homepage
+    await page.goto("/?previewTheme=midnight-noir", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "25-theme-midnight-noir-homepage.png") });
+
+    // 26: Theme 2 Midnight Noir Catalog
+    await page.goto("/products", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "26-theme-midnight-noir-catalog.png") });
+
+    // 27: Theme 3 Modern Minimal Homepage
+    await page.goto("/?previewTheme=modern-minimal", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "27-theme-modern-minimal-homepage.png") });
+
+    // 28: Theme 3 Modern Minimal Catalog
+    await page.goto("/products", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "28-theme-modern-minimal-catalog.png") });
+
+    // 29: Theme 4 Orange Energy Homepage
+    await page.goto("/?previewTheme=orange-energy", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "29-theme-orange-energy-homepage.png") });
+
+    // 30: Theme 4 Orange Energy Catalog
+    await page.goto("/products", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "30-theme-orange-energy-catalog.png") });
+
+    // 31: Admin Appearance Studio — Themes Grid
+    await page.goto("/admin/appearance", { waitUntil: "networkidle" });
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "31-admin-appearance-themes-grid.png") });
+
+    // 32: Admin Appearance Studio — Branding Tab
+    const brandingTab = page.getByRole("button", { name: /Branding & Palette/i });
+    if (await brandingTab.isVisible()) {
+      await brandingTab.click();
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, "32-admin-appearance-branding-studio.png") });
+    }
+
+    // 33: Admin Appearance Studio — Homepage Sections Tab
+    const homepageTab = page.getByRole("button", { name: /Homepage Sections/i });
+    if (await homepageTab.isVisible()) {
+      await homepageTab.click();
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, "33-admin-appearance-homepage-sections.png") });
+    }
+
+    // 34: Admin Appearance Studio — Live Responsive Preview Tab
+    const previewTab = page.getByRole("button", { name: /Live Responsive Preview/i });
+    if (await previewTab.isVisible()) {
+      await previewTab.click();
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: path.join(SCREENSHOT_DIR, "34-admin-appearance-responsive-preview.png") });
+    }
+
     await desktopContext.close();
 
     // 2. Mobile context
@@ -149,6 +209,14 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await menuBtn.click();
     await mobilePage.waitForTimeout(400);
     await mobilePage.screenshot({ path: path.join(SCREENSHOT_DIR, "09-mobile-nav-drawer.png") });
+
+    // 35: Midnight Noir Mobile
+    await mobilePage.goto("/?previewTheme=midnight-noir", { waitUntil: "networkidle" });
+    await mobilePage.screenshot({ path: path.join(SCREENSHOT_DIR, "35-theme-midnight-noir-mobile.png") });
+
+    // 36: Orange Energy Mobile
+    await mobilePage.goto("/?previewTheme=orange-energy", { waitUntil: "networkidle" });
+    await mobilePage.screenshot({ path: path.join(SCREENSHOT_DIR, "36-theme-orange-energy-mobile.png") });
 
     await mobileContext.close();
   });

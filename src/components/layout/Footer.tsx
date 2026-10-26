@@ -2,57 +2,81 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Truck, RefreshCw } from "lucide-react";
+import { ShieldCheck, Truck, RefreshCw } from "lucide-react";
+import type { StoreAppearanceConfig } from "@/types/theme";
 
-export function Footer() {
+interface FooterProps {
+  appearance?: StoreAppearanceConfig | null;
+}
+
+export function Footer({ appearance }: FooterProps) {
+  const storeName = appearance?.storeName || "NEXORA";
+  const storeTagline = appearance?.storeTagline || "Haute Couture";
+  const showGuarantees = appearance?.footer?.showGuarantees ?? true;
+  const copyrightText =
+    appearance?.footer?.copyrightText ||
+    `© ${new Date().getFullYear()} ${storeName}. All rights reserved.`;
+  const footerTagline =
+    appearance?.footer?.tagline ||
+    "Founded on the belief that true luxury resides in timeless proportions, impeccable textiles, and peerless execution.";
+  const contactEmail = appearance?.contactEmail || "concierge@nexoracommerce.com";
+  const contactPhone = appearance?.contactPhone || "+1 (800) 456-7890";
+  const socialLinks = appearance?.footer?.socialLinks || [
+    { platform: "instagram", url: "https://instagram.com" },
+    { platform: "pinterest", url: "https://pinterest.com" },
+    { platform: "linkedin", url: "https://linkedin.com" },
+  ];
+
   return (
     <footer className="bg-canvas-secondary border-t border-border-default pt-16 pb-12 text-charcoal-700">
       {/* Guarantees Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 mb-12 border-b border-border-subtle">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center sm:text-left">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
-            <div className="p-3 bg-canvas-primary border border-border-default text-bronze">
-              <Truck className="w-5 h-5" />
+      {showGuarantees && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 mb-12 border-b border-border-subtle">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
+              <div className="p-3 bg-canvas-primary rounded-card border border-border-default text-bronze">
+                <Truck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
+                  Complimentary Shipping
+                </h4>
+                <p className="text-xs text-charcoal-500 mt-1">
+                  On all international orders over $150 with insured courier dispatch.
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
-                Complimentary Shipping
-              </h4>
-              <p className="text-xs text-charcoal-500 mt-1">
-                On all international orders over $150 with insured courier dispatch.
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
-            <div className="p-3 bg-canvas-primary border border-border-default text-bronze">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
+              <div className="p-3 bg-canvas-primary rounded-card border border-border-default text-bronze">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
+                  Artisanal Provenance
+                </h4>
+                <p className="text-xs text-charcoal-500 mt-1">
+                  Every creation comes with a verified digital certificate of authenticity.
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
-                Artisanal Provenance
-              </h4>
-              <p className="text-xs text-charcoal-500 mt-1">
-                Every creation comes with a verified digital certificate of authenticity.
-              </p>
-            </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
-            <div className="p-3 bg-canvas-primary border border-border-default text-bronze">
-              <RefreshCw className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
-                Discreet Returns
-              </h4>
-              <p className="text-xs text-charcoal-500 mt-1">
-                30-day effortless return privilege with door-to-door concierge pickup.
-              </p>
+            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
+              <div className="p-3 bg-canvas-primary rounded-card border border-border-default text-bronze">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
+                  Discreet Returns
+                </h4>
+                <p className="text-xs text-charcoal-500 mt-1">
+                  30-day effortless return privilege with door-to-door concierge pickup.
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-16">
@@ -60,15 +84,16 @@ export function Footer() {
           <div className="space-y-4">
             <div className="flex flex-col">
               <span className="text-2xl font-serif tracking-[0.25em] text-charcoal-900 uppercase">
-                NEXORA
+                {storeName}
               </span>
-              <span className="text-[9px] tracking-[0.35em] text-charcoal-500 uppercase -mt-0.5 font-light">
-                Haute Couture
-              </span>
+              {storeTagline && (
+                <span className="text-[9px] tracking-[0.35em] text-charcoal-500 uppercase -mt-0.5 font-light">
+                  {storeTagline}
+                </span>
+              )}
             </div>
             <p className="text-xs text-charcoal-500 leading-relaxed">
-              Founded on the belief that true luxury resides in timeless proportions,
-              impeccable textiles, and peerless execution.
+              {footerTagline}
             </p>
           </div>
 
@@ -108,56 +133,65 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link href="/account" className="hover:text-bronze transition-colors">
-                  My Private Account
+                <Link href="/account/orders" className="hover:text-bronze transition-colors">
+                  Order Tracking
                 </Link>
               </li>
               <li>
-                <Link href="/account" className="hover:text-bronze transition-colors">
-                  Order Tracking & History
+                <Link href="/account/support" className="hover:text-bronze transition-colors">
+                  Concierge Support
                 </Link>
               </li>
               <li>
-                <span className="text-charcoal-500">concierge@nexoracommerce.com</span>
+                <a href={`mailto:${contactEmail}`} className="hover:text-bronze transition-colors">
+                  Email: {contactEmail}
+                </a>
               </li>
               <li>
-                <span className="text-charcoal-500">+1 (800) 948-2041</span>
+                <span className="text-charcoal-500">
+                  Tel: {contactPhone}
+                </span>
               </li>
             </ul>
           </div>
 
-          {/* Newsletter */}
-          <div className="space-y-3">
+          {/* Maison & Social Links */}
+          <div className="space-y-4">
             <h4 className="text-xs uppercase tracking-luxury text-charcoal-900 font-semibold">
-              Private Dispatch
+              The Maison
             </h4>
-            <p className="text-xs text-charcoal-500">
-              Receive private invitations to seasonal private viewings and new limited editions.
+            <p className="text-xs text-charcoal-500 leading-relaxed">
+              Private appointments available at our London, Paris, and Tokyo ateliers.
             </p>
-            <form onSubmit={(e) => e.preventDefault()} className="flex items-center">
-              <input
-                type="email"
-                placeholder="Enter email address"
-                className="bg-canvas-primary border border-border-default px-3 py-2 text-xs text-charcoal-900 focus:outline-none focus:border-bronze flex-1 rounded-none placeholder:text-charcoal-300"
-              />
-              <button
-                type="submit"
-                className="bg-charcoal-900 text-canvas-primary px-4 py-2 hover:bg-bronze transition-colors text-xs uppercase tracking-wider"
-                aria-label="Subscribe"
-              >
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
+            <div className="flex items-center space-x-3 pt-2">
+              {socialLinks.map((social, idx) => (
+                <a
+                  key={idx}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs uppercase tracking-wider text-charcoal-500 hover:text-bronze transition-colors"
+                >
+                  {social.platform}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-border-subtle flex flex-col sm:flex-row items-center justify-between text-[11px] text-charcoal-500 space-y-4 sm:space-y-0">
-          <p>© {new Date().getFullYear()} NEXORA Commerce Inc. All rights reserved.</p>
+        {/* Bottom Credits */}
+        <div className="pt-8 border-t border-border-subtle flex flex-col sm:flex-row items-center justify-between text-[11px] text-charcoal-500 gap-4">
+          <p>{copyrightText}</p>
           <div className="flex space-x-6">
-            <span className="hover:text-charcoal-900 cursor-pointer">Privacy Charter</span>
-            <span className="hover:text-charcoal-900 cursor-pointer">Terms of Service</span>
-            <span className="hover:text-charcoal-900 cursor-pointer">Security Compliance</span>
+            <Link href="/privacy" className="hover:text-charcoal-900 transition-colors">
+              Privacy Protocol
+            </Link>
+            <Link href="/terms" className="hover:text-charcoal-900 transition-colors">
+              Terms of Commission
+            </Link>
+            <Link href="/admin" className="hover:text-charcoal-900 transition-colors">
+              Maison Admin
+            </Link>
           </div>
         </div>
       </div>

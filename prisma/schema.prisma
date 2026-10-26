@@ -628,4 +628,34 @@ model Notification {
   @@map("notifications")
 }
 
+model StoreThemeConfig {
+  id                  String   @id @default(cuid())
+  businessId          String   @unique @default("default-store")
+  activeThemeId       String   @default("editorial-luxury")
+  storeName           String   @default("NEXORA")
+  storeTagline        String   @default("Haute Couture")
+  logoUrl             String?
+  faviconUrl          String?
+  contactEmail        String?  @default("concierge@nexoracommerce.com")
+  contactPhone        String?  @default("+1 (800) 456-7890")
+  announcementText    String?  @default("Complimentary Worldwide Delivery on Orders Over $150")
+  announcementEnabled Boolean  @default(true)
+  announcementLink    String?  @default("/products")
+  primaryColor        String?
+  secondaryColor      String?
+  fontPreset          String   @default("default")
+  headerConfig        Json?
+  footerConfig        Json?
+  homepageSections    Json?
+  draftConfig         Json?
+  publishedAt         DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([activeThemeId])
+  @@map("store_theme_configs")
+}
+
+
 

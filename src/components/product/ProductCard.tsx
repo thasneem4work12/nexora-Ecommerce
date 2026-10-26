@@ -36,7 +36,7 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <article className="group relative flex flex-col bg-canvas-surface border border-border-subtle hover:border-border-strong transition-all duration-300">
+    <article className="group relative flex flex-col bg-canvas-surface rounded-card border border-border-subtle hover:border-border-strong transition-all duration-300 overflow-hidden">
       {/* Product Image Container */}
       <Link
         href={`/products/${product.slug}`}
@@ -68,7 +68,7 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-charcoal-900/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-center">
             <button
               onClick={handleQuickAdd}
-              className="w-full bg-canvas-surface/90 hover:bg-canvas-surface text-charcoal-900 text-xs uppercase tracking-luxury py-2.5 px-4 font-medium transition-all shadow-md flex items-center justify-center space-x-2"
+              className="w-full bg-canvas-surface/90 hover:bg-canvas-surface text-charcoal-900 text-xs uppercase tracking-luxury py-2.5 px-4 font-medium transition-all shadow-md flex items-center justify-center space-x-2 rounded-btn"
             >
               <Plus className="w-3.5 h-3.5 text-bronze" />
               <span>Quick Add</span>

@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   Users,
   LifeBuoy,
+  Palette,
   Settings,
   ExternalLink,
   LogOut,
@@ -76,6 +77,11 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       href: "/admin/inventory/movements",
       label: "Stock Audit Ledger",
       icon: History,
+    },
+    {
+      href: "/admin/appearance",
+      label: "Theme & Appearance",
+      icon: Palette,
     },
     {
       href: "/admin/settings",

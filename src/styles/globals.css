@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  [data-theme="editorial-luxury"] {
     --canvas-primary: #FAF8F5;
     --canvas-secondary: #F4EFEA;
     --canvas-surface: #FFFFFF;
@@ -23,6 +24,88 @@
 
     --font-serif: "Playfair Display", Georgia, "Times New Roman", serif;
     --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    --radius-btn: 0px;
+    --radius-card: 0px;
+    --radius-badge: 0px;
+  }
+
+  [data-theme="midnight-noir"] {
+    --canvas-primary: #0D0E11;
+    --canvas-secondary: #15171C;
+    --canvas-surface: #1C1F26;
+
+    --text-primary: #F4F4F6;
+    --text-secondary: #C5C7D0;
+    --text-muted: #8E92A0;
+    --text-subtle: #585C6A;
+
+    --accent-bronze: #D4AF37;
+    --accent-bronze-light: #E8C868;
+    --accent-bronze-dark: #AA8920;
+
+    --border-subtle: #262933;
+    --border-default: #363B49;
+    --border-strong: #51586B;
+
+    --font-serif: "Cinzel", "Bodoni MT", "Didot", serif;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    --radius-btn: 2px;
+    --radius-card: 4px;
+    --radius-badge: 2px;
+  }
+
+  [data-theme="modern-minimal"] {
+    --canvas-primary: #FFFFFF;
+    --canvas-secondary: #F9FAFB;
+    --canvas-surface: #FFFFFF;
+
+    --text-primary: #111827;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    --text-subtle: #D1D5DB;
+
+    --accent-bronze: #1F2937;
+    --accent-bronze-light: #4B5563;
+    --accent-bronze-dark: #000000;
+
+    --border-subtle: #F3F4F6;
+    --border-default: #E5E7EB;
+    --border-strong: #9CA3AF;
+
+    --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    --radius-btn: 6px;
+    --radius-card: 12px;
+    --radius-badge: 9999px;
+  }
+
+  [data-theme="orange-energy"] {
+    --canvas-primary: #0A0A0A;
+    --canvas-secondary: #121212;
+    --canvas-surface: #1E1E1E;
+
+    --text-primary: #FFFFFF;
+    --text-secondary: #D1D5DB;
+    --text-muted: #9CA3AF;
+    --text-subtle: #6B7280;
+
+    --accent-bronze: #FF5500;
+    --accent-bronze-light: #FF7728;
+    --accent-bronze-dark: #CC4400;
+
+    --border-subtle: #2A2A2A;
+    --border-default: #3E3E3E;
+    --border-strong: #FF5500;
+
+    --font-serif: "Impact", "Oswald", "Arial Black", sans-serif;
+    --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+
+    --radius-btn: 0px;
+    --radius-card: 0px;
+    --radius-badge: 0px;
   }
 
   body {
@@ -32,11 +115,20 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   h1, h2, h3, .font-serif {
     font-family: var(--font-serif);
     letter-spacing: -0.01em;
+  }
+
+  /* Specific heading styling for themes with heavy display typography */
+  [data-theme="orange-energy"] h1,
+  [data-theme="orange-energy"] h2,
+  [data-theme="orange-energy"] h3 {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
 }
 
@@ -46,6 +138,6 @@
   }
 
   .bronze-gradient {
-    background: linear-gradient(135deg, #B58A54 0%, #966A38 50%, #704D25 100%);
+    background: linear-gradient(135deg, var(--accent-bronze-light) 0%, var(--accent-bronze) 50%, var(--accent-bronze-dark) 100%);
   }
 }

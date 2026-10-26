@@ -28,6 +28,7 @@ const buttonVariants = cva(
         icon: "h-10 w-10",
       },
       rounded: {
+        default: "rounded-btn",
         none: "rounded-none",
         sm: "rounded-sm",
         md: "rounded-md",
@@ -37,7 +38,7 @@ const buttonVariants = cva(
     defaultVariants: {
       variant: "primary",
       size: "md",
-      rounded: "none", // Luxury editorial aesthetic favors sharp, clean corners
+      rounded: "default",
     },
   }
 );
