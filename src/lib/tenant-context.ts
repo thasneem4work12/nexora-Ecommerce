@@ -29,7 +29,7 @@ export async function resolveStoreTenant(
       include: { themeConfig: true },
     });
 
-    if (!business) return null;
+    if (!business || business.isSuspended) return null;
     return { business, themeConfig: business.themeConfig };
   }
 
@@ -38,6 +38,7 @@ export async function resolveStoreTenant(
     where: {
       OR: [{ slug: target.toLowerCase() }, { id: target }],
       status: "ACTIVE",
+      isSuspended: false,
     },
     include: { themeConfig: true },
   });

@@ -16,6 +16,8 @@ import {
   Settings,
   Building2,
   UserCheck,
+  CreditCard,
+  ShieldCheck,
   ExternalLink,
   LogOut,
   Menu,
@@ -97,10 +99,24 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       icon: UserCheck,
     },
     {
+      href: "/admin/billing",
+      label: "Subscription & Billing",
+      icon: CreditCard,
+    },
+    {
       href: "/admin/settings",
       label: "Store Settings",
       icon: Settings,
     },
+    ...(user.role === "SUPERADMIN"
+      ? [
+          {
+            href: "/platform",
+            label: "Platform Superadmin",
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
   ];
 
   const handleSignOut = async () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import {
   adjustStock,
   getInventoryItems,
@@ -31,9 +32,9 @@ describe("Inventory Service (PostgreSQL Audited Stock Operations)", () => {
     }
     adminUserId = admin.id;
 
-    // 2. Locate an active variant
+    // 2. Locate an active variant in default business
     const variant = await prisma.productVariant.findFirst({
-      where: { product: { isArchived: false } },
+      where: { product: { businessId: DEFAULT_BUSINESS_ID, isArchived: false } },
     });
 
     if (!variant) {

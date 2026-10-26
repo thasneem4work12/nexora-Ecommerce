@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { seedSaaSPlans } from "../scripts/seed-saas-plans";
 
 const prisma = new PrismaClient();
 
@@ -607,6 +608,8 @@ async function seed() {
       `✓ Product seeded: ${prod.title} [${prod.published ? "PUBLISHED" : "UNPUBLISHED"}] with ${prod.variants.length} variant(s)`
     );
   }
+
+  await seedSaaSPlans();
 
   const categoryCount = await prisma.category.count();
   const productCount = await prisma.product.count();

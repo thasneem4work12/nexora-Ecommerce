@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
+import { checkProductLimit } from "@/services/saas/usage.service";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -298,6 +299,12 @@ export async function createProduct(
   const validated = CreateProductSchema.parse(input);
   const slug = await generateUniqueSlug(validated.slug || validated.title, undefined, businessId);
 
+  // Enforce SaaS plan product limit
+  const limitCheck = await checkProductLimit(businessId);
+  if (!limitCheck.allowed) {
+    throw new Error(limitCheck.reason || "Product limit reached for your subscription plan.");
+  }
+
   // Validate SKU uniqueness across the database
   for (const v of validated.variants) {
     const existingSku = await prisma.productVariant.findUnique({
@@ -583,11 +590,19 @@ export async function archiveProduct(id: string, businessId?: string) {
  * Restores an archived product.
  */
 export async function restoreProduct(id: string, businessId?: string) {
-  const where: Prisma.ProductWhereUniqueInput = { id };
+  const effectiveBusinessId = businessId || DEFAULT_BUSINESS_ID;
   if (businessId) {
     const p = await prisma.product.findFirst({ where: { id, businessId } });
     if (!p) throw new Error("Product not found in this business");
   }
+
+  // Enforce SaaS plan product limit before un-archiving
+  const limitCheck = await checkProductLimit(effectiveBusinessId);
+  if (!limitCheck.allowed) {
+    throw new Error(limitCheck.reason || "Product limit reached for your subscription plan.");
+  }
+
+  const where: Prisma.ProductWhereUniqueInput = { id };
 
   const updated = await prisma.product.update({
     where,

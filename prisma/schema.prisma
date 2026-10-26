@@ -47,27 +47,38 @@ model Business {
   contactEmail String?
   contactPhone String?
   description  String?        @db.Text
+  isSuspended  Boolean        @default(false)
+  suspendedAt  DateTime?
+  suspensionReason String?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  members            BusinessMember[]
-  settings           BusinessSettings?
-  themeConfig        StoreThemeConfig?
-  invitations        BusinessInvitation[]
-  auditLogs          BusinessAuditLog[]
-  categories         Category[]
-  products           Product[]
-  orders             Order[]
-  carts              Cart[]
-  inventoryMovements InventoryMovement[]
-  stockReservations  StockReservation[]
-  payments           Payment[]
-  returnRequests     ReturnRequest[]
-  supportTickets     SupportTicket[]
-  notifications      Notification[]
+  members              BusinessMember[]
+  settings             BusinessSettings?
+  themeConfig          StoreThemeConfig?
+  invitations          BusinessInvitation[]
+  auditLogs            BusinessAuditLog[]
+  categories           Category[]
+  products             Product[]
+  orders               Order[]
+  carts                Cart[]
+  inventoryMovements   InventoryMovement[]
+  stockReservations    StockReservation[]
+  payments             Payment[]
+  returnRequests       ReturnRequest[]
+  supportTickets       SupportTicket[]
+  notifications        Notification[]
+  subscription         SaaSSubscription?
+  saasInvoices         SaaSInvoice[]
+  saasPayments         SaaSPayment[]
+  saasBillingEvents    SaaSBillingEvent[]
+  saasUsageRecords     SaaSUsageRecord[]
+  saasPlanChanges      SaaSPlanChange[]
+  saasBillingAuditLogs SaaSBillingAuditLog[]
 
   @@index([slug])
   @@index([status])
+  @@index([isSuspended])
   @@map("businesses")
 }
 
@@ -167,9 +178,11 @@ model User {
   assignedTickets    SupportTicket[]      @relation("AssignedTickets")
   ticketMessages     TicketMessage[]
   notifications      Notification[]
-  businessMembers    BusinessMember[]
-  sentInvitations    BusinessInvitation[] @relation("SentInvitations")
-  businessAuditLogs  BusinessAuditLog[]
+  businessMembers      BusinessMember[]
+  sentInvitations      BusinessInvitation[] @relation("SentInvitations")
+  businessAuditLogs    BusinessAuditLog[]
+  requestedPlanChanges SaaSPlanChange[]     @relation("RequestedPlanChanges")
+  saasBillingAuditLogs SaaSBillingAuditLog[] @relation("SaaSBillingAuditLogs")
 
   @@map("users")
 }
@@ -833,3 +846,285 @@ model StoreThemeConfig {
   @@index([activeThemeId])
   @@map("store_theme_configs")
 }
+
+// ==========================================
+// Phase 8: SaaS Subscription & Plan Management Models
+// ==========================================
+
+enum SaaSBillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SaaSSubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  SUSPENDED
+}
+
+enum SaaSInvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  UNCOLLECTIBLE
+  VOID
+}
+
+enum SaaSPaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model SaaSPlan {
+  id                     String             @id @default(cuid())
+  code                   String             @unique
+  name                   String
+  description            String?            @db.Text
+  isActive               Boolean            @default(true)
+  isPublic               Boolean            @default(true)
+  features               Json?
+  maxProducts            Int                @default(50)
+  maxStaff               Int                @default(2)
+  maxStorageMb           Int                @default(1000)
+  allowCustomThemes      Boolean            @default(false)
+  allowAdvancedAnalytics Boolean            @default(false)
+  allowPrioritySupport   Boolean            @default(false)
+  trialDays              Int                @default(14)
+  sortOrder              Int                @default(0)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  prices                 SaaSPlanPrice[]
+  subscriptions          SaaSSubscription[]
+  planChangesFrom        SaaSPlanChange[]   @relation("PlanChangeFrom")
+  planChangesTo          SaaSPlanChange[]   @relation("PlanChangeTo")
+
+  @@map("saas_plans")
+}
+
+model SaaSPlanPrice {
+  id             String              @id @default(cuid())
+  planId         String
+  interval       SaaSBillingInterval
+  currency       String              @default("USD")
+  amountInCents  Int
+  version        Int                 @default(1)
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  plan           SaaSPlan            @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions  SaaSSubscription[]
+  invoiceLines   SaaSInvoiceLine[]
+
+  @@unique([planId, interval, version])
+  @@index([planId])
+  @@map("saas_plan_prices")
+}
+
+model SaaSSubscription {
+  id                     String                 @id @default(cuid())
+  businessId             String                 @unique
+  planId                 String
+  priceId                String
+  status                 SaaSSubscriptionStatus @default(TRIALING)
+  billingInterval        SaaSBillingInterval    @default(MONTHLY)
+  currency               String                 @default("USD")
+  trialStartsAt          DateTime?
+  trialEndsAt            DateTime?
+  currentPeriodStartsAt  DateTime               @default(now())
+  currentPeriodEndsAt    DateTime
+  cancelAtPeriodEnd      Boolean                @default(false)
+  canceledAt             DateTime?
+  cancelReason           String?
+  endedAt                DateTime?
+  provider               String                 @default("SIMULATED")
+  providerSubscriptionId String?
+  providerCustomerId     String?
+  metadata               Json?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  business               Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  plan                   SaaSPlan               @relation(fields: [planId], references: [id])
+  price                  SaaSPlanPrice          @relation(fields: [priceId], references: [id])
+  invoices               SaaSInvoice[]
+  payments               SaaSPayment[]
+  billingEvents          SaaSBillingEvent[]
+  usageRecords           SaaSUsageRecord[]
+  planChanges            SaaSPlanChange[]
+
+  @@index([planId])
+  @@index([priceId])
+  @@index([status])
+  @@map("saas_subscriptions")
+}
+
+model SaaSInvoice {
+  id                    String            @id @default(cuid())
+  invoiceNumber         String            @unique
+  subscriptionId        String
+  businessId            String
+  status                SaaSInvoiceStatus @default(OPEN)
+  billingPeriodStartsAt DateTime
+  billingPeriodEndsAt   DateTime
+  subtotalInCents       Int
+  taxInCents            Int               @default(0)
+  discountInCents       Int               @default(0)
+  totalInCents          Int
+  currency              String            @default("USD")
+  paidAt                DateTime?
+  dueDate               DateTime
+  pdfUrl                String?
+  notes                 String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  subscription          SaaSSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  business              Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lines                 SaaSInvoiceLine[]
+  payments              SaaSPayment[]
+
+  @@index([subscriptionId])
+  @@index([businessId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@map("saas_invoices")
+}
+
+model SaaSInvoiceLine {
+  id                 String         @id @default(cuid())
+  invoiceId          String
+  priceId            String?
+  description        String
+  quantity           Int            @default(1)
+  unitAmountInCents  Int
+  totalAmountInCents Int
+  currency           String         @default("USD")
+  createdAt          DateTime       @default(now())
+
+  invoice            SaaSInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  price              SaaSPlanPrice? @relation(fields: [priceId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@map("saas_invoice_lines")
+}
+
+model SaaSPayment {
+  id                 String            @id @default(cuid())
+  subscriptionId     String
+  invoiceId          String?
+  businessId         String
+  paymentNumber      String            @unique
+  provider           String            @default("SIMULATED")
+  providerPaymentId  String?
+  amountInCents      Int
+  currency           String            @default("USD")
+  status             SaaSPaymentStatus @default(PENDING)
+  errorMessage       String?
+  metadata           Json?
+  paidAt             DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  subscription       SaaSSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  invoice            SaaSInvoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  business           Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  billingEvents      SaaSBillingEvent[]
+
+  @@index([subscriptionId])
+  @@index([invoiceId])
+  @@index([businessId])
+  @@index([status])
+  @@map("saas_payments")
+}
+
+model SaaSBillingEvent {
+  id             String            @id @default(cuid())
+  businessId     String
+  subscriptionId String?
+  paymentId      String?
+  provider       String
+  eventId        String            @unique
+  eventType      String
+  status         String            @default("PROCESSED")
+  payload        String            @db.Text
+  error          String?
+  createdAt      DateTime          @default(now())
+
+  business       Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscription   SaaSSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  payment        SaaSPayment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([subscriptionId])
+  @@index([paymentId])
+  @@index([eventId])
+  @@map("saas_billing_events")
+}
+
+model SaaSUsageRecord {
+  id             String           @id @default(cuid())
+  businessId     String
+  subscriptionId String
+  metric         String
+  currentValue   Int              @default(0)
+  limitValue     Int              @default(0)
+  recordedAt     DateTime         @default(now())
+
+  business       Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  subscription   SaaSSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, metric])
+  @@index([subscriptionId])
+  @@map("saas_usage_records")
+}
+
+model SaaSPlanChange {
+  id                     String           @id @default(cuid())
+  subscriptionId         String
+  businessId             String
+  fromPlanId             String
+  toPlanId               String
+  requestedByUserId      String?
+  changeType             String
+  effectiveDate          DateTime
+  prorationAmountInCents Int              @default(0)
+  reason                 String?
+  createdAt              DateTime         @default(now())
+
+  subscription           SaaSSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  business               Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  fromPlan               SaaSPlan         @relation("PlanChangeFrom", fields: [fromPlanId], references: [id])
+  toPlan                 SaaSPlan         @relation("PlanChangeTo", fields: [toPlanId], references: [id])
+  requestedBy            User?            @relation("RequestedPlanChanges", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([subscriptionId])
+  @@index([businessId])
+  @@map("saas_plan_changes")
+}
+
+model SaaSBillingAuditLog {
+  id         String    @id @default(cuid())
+  businessId String?
+  userId     String?
+  action     String
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  user       User?     @relation("SaaSBillingAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([action])
+  @@map("saas_billing_audit_logs")
+}
+

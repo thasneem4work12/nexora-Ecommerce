@@ -39,6 +39,9 @@ export const PERMISSIONS = {
   MANAGE_APPEARANCE: ["OWNER", "SUPERADMIN"] as (Role | BusinessRole)[],
   MANAGE_SETTINGS: ["OWNER", "SUPERADMIN"] as (Role | BusinessRole)[],
   MANAGE_MEMBERS: ["OWNER", "SUPERADMIN"] as (Role | BusinessRole)[],
+  VIEW_BILLING: ["MANAGER", "OWNER", "SUPERADMIN"] as (Role | BusinessRole)[],
+  MANAGE_BILLING: ["OWNER", "SUPERADMIN"] as (Role | BusinessRole)[],
+  PLATFORM_ADMIN: ["SUPERADMIN"] as (Role | BusinessRole)[],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -238,7 +241,7 @@ export async function getVerifiedBusinessContext(
   }
 
   // 3. Verify business is active
-  if (member.business.status === "SUSPENDED") {
+  if (member.business.status === "SUSPENDED" || member.business.isSuspended) {
     throw new AuthError("Access denied: This business account is suspended.", 403);
   }
 
@@ -327,4 +330,34 @@ export async function requireAdminPageSession(
     }
     redirect("/admin?error=unauthorized_action");
   }
+}
+
+/**
+ * Requires the active session to belong to a global platform SUPERADMIN.
+ * Used for platform API route handlers.
+ */
+export async function requirePlatformSuperadmin(): Promise<{ user: User; session: Session }> {
+  const verified = await getVerifiedUserSession();
+  if (!verified) {
+    throw new AuthError("Authentication required. Please sign in.", 401);
+  }
+  if (verified.user.role !== "SUPERADMIN") {
+    throw new AuthError("Access denied: Platform SUPERADMIN authorization required.", 403);
+  }
+  return verified;
+}
+
+/**
+ * Requires the active session to belong to a global platform SUPERADMIN.
+ * Used for platform Server Component pages.
+ */
+export async function requirePlatformPageSession(): Promise<{ user: User; session: Session }> {
+  const verified = await getVerifiedUserSession();
+  if (!verified) {
+    redirect("/login?callbackUrl=/platform");
+  }
+  if (verified.user.role !== "SUPERADMIN") {
+    redirect("/admin?error=superadmin_required");
+  }
+  return verified;
 }

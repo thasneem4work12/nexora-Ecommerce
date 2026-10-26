@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { ADMIN_BUSINESS_COOKIE } from "@/lib/tenant-context";
+import { checkStaffLimit } from "@/services/saas/usage.service";
 
 /**
  * POST /api/admin/members/accept
@@ -80,6 +81,15 @@ export async function POST(request: NextRequest) {
         role: existing.role,
         message: "You are already a member of this business.",
       });
+    }
+
+    // Verify staff limit before adding member
+    const staffLimitCheck = await checkStaffLimit(invitation.businessId);
+    if (!staffLimitCheck.allowed) {
+      return NextResponse.json(
+        { success: false, error: staffLimitCheck.reason || "Staff limit reached for this business's plan." },
+        { status: 403 }
+      );
     }
 
     // Add user as business member and mark invitation accepted

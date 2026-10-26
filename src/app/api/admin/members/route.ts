@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { requireAdminApi } from "@/lib/admin-auth";
+import { checkStaffLimit } from "@/services/saas/usage.service";
 import type { BusinessRole } from "@prisma/client";
 
 /**
@@ -110,6 +111,15 @@ export async function POST(request: NextRequest) {
     if ((targetRole === "OWNER" || targetRole === "MANAGER") && businessRole !== "OWNER" && !isSuperAdmin) {
       return NextResponse.json(
         { success: false, error: "Unauthorized: Only store Owners can invite other Owners or Managers." },
+        { status: 403 }
+      );
+    }
+
+    // Enforce SaaS plan staff limit
+    const staffLimitCheck = await checkStaffLimit(businessId);
+    if (!staffLimitCheck.allowed) {
+      return NextResponse.json(
+        { success: false, error: staffLimitCheck.reason || "Staff limit reached for your subscription plan." },
         { status: 403 }
       );
     }

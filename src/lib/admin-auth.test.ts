@@ -106,11 +106,15 @@ describe("Admin Authorization & RBAC Matrix", () => {
     expect(hasPermission("MANAGER", "MANAGE_SETTINGS")).toBe(false);
   });
 
-  it("should grant OWNER full administrative access across the platform", () => {
+  it("should grant OWNER full administrative access within business scope", () => {
     const allPermissions = Object.keys(PERMISSIONS) as Permission[];
 
     allPermissions.forEach((perm) => {
-      expect(hasPermission("OWNER", perm)).toBe(true);
+      if (perm === "PLATFORM_ADMIN") {
+        expect(hasPermission("OWNER", perm)).toBe(false);
+      } else {
+        expect(hasPermission("OWNER", perm)).toBe(true);
+      }
     });
   });
 
