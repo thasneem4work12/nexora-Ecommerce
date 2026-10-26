@@ -29,7 +29,7 @@ export default async function AdminOrdersPage({
     page?: string;
   }>;
 }) {
-  await requireAdminPageSession("VIEW_ORDERS");
+  const { businessId } = await requireAdminPageSession("VIEW_ORDERS");
   const params = await searchParams;
 
   const page = params.page ? parseInt(params.page, 10) : 1;
@@ -39,13 +39,14 @@ export default async function AdminOrdersPage({
 
   const [result, metrics] = await Promise.all([
     getAdminOrders({
+      businessId,
       search,
       status,
       paymentStatus,
       page: isNaN(page) ? 1 : page,
       limit: 15,
     }),
-    getAdminOrderMetrics(),
+    getAdminOrderMetrics(businessId),
   ]);
 
   const { orders, pagination } = result;

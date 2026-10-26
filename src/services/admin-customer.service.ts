@@ -6,6 +6,7 @@ export interface GetAdminCustomersParams {
   page?: number;
   limit?: number;
   sortBy?: "newest" | "oldest" | "spend" | "orders";
+  businessId?: string;
 }
 
 /**
@@ -19,6 +20,13 @@ export async function getAdminCustomers(params: GetAdminCustomersParams = {}) {
 
   const where: Prisma.UserWhereInput = {
     role: "CUSTOMER",
+    ...(params.businessId
+      ? {
+          orders: {
+            some: { businessId: params.businessId },
+          },
+        }
+      : {}),
   };
 
   if (params.search && params.search.trim() !== "") {
@@ -43,6 +51,7 @@ export async function getAdminCustomers(params: GetAdminCustomersParams = {}) {
         role: true,
         createdAt: true,
         orders: {
+          where: params.businessId ? { businessId: params.businessId } : undefined,
           select: {
             id: true,
             orderNumber: true,
@@ -54,8 +63,12 @@ export async function getAdminCustomers(params: GetAdminCustomersParams = {}) {
         },
         _count: {
           select: {
-            orders: true,
-            supportTickets: true,
+            orders: params.businessId
+              ? { where: { businessId: params.businessId } }
+              : true,
+            supportTickets: params.businessId
+              ? { where: { businessId: params.businessId } }
+              : true,
           },
         },
       },
@@ -104,7 +117,7 @@ export async function getAdminCustomers(params: GetAdminCustomersParams = {}) {
 /**
  * Retrieves a detailed customer profile for authorized store administrators.
  */
-export async function getAdminCustomerById(customerId: string) {
+export async function getAdminCustomerById(customerId: string, businessId?: string) {
   const customer = await prisma.user.findUnique({
     where: { id: customerId },
     include: {
@@ -112,6 +125,7 @@ export async function getAdminCustomerById(customerId: string) {
         orderBy: { createdAt: "desc" },
       },
       orders: {
+        where: businessId ? { businessId } : undefined,
         orderBy: { createdAt: "desc" },
         take: 10,
         include: {
@@ -120,10 +134,12 @@ export async function getAdminCustomerById(customerId: string) {
         },
       },
       supportTickets: {
+        where: businessId ? { businessId } : undefined,
         orderBy: { updatedAt: "desc" },
         take: 5,
       },
       returnRequests: {
+        where: businessId ? { businessId } : undefined,
         orderBy: { createdAt: "desc" },
         take: 5,
       },
@@ -131,6 +147,11 @@ export async function getAdminCustomerById(customerId: string) {
   });
 
   if (!customer) {
+    return null;
+  }
+
+  // If businessId is specified and customer has zero interaction with this business, return null
+  if (businessId && customer.orders.length === 0 && customer.supportTickets.length === 0 && customer.returnRequests.length === 0) {
     return null;
   }
 

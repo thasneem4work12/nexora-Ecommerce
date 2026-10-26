@@ -68,6 +68,7 @@ export interface OrderItemInput {
 }
 
 export interface CheckoutSubmissionInput {
+  businessId?: string;
   items: OrderItemInput[];
   shippingAddress: ShippingAddressInput;
   billingAddress?: ShippingAddressInput;

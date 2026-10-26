@@ -5,7 +5,7 @@ export interface CartValidationResult {
   isValid: boolean;
   issues: Array<{
     variantId: string;
-    issue: "OUT_OF_STOCK" | "QUANTITY_EXCEEDED" | "PRICE_CHANGED" | "PRODUCT_UNAVAILABLE";
+    issue: "OUT_OF_STOCK" | "QUANTITY_EXCEEDED" | "PRICE_CHANGED" | "PRODUCT_UNAVAILABLE" | "CROSS_TENANT_ITEM";
     message: string;
     requestedQuantity: number;
     availableStock?: number;
@@ -17,8 +17,12 @@ export interface CartValidationResult {
 /**
  * Validates a client cart payload against authoritative PostgreSQL database records.
  * Ensures stock levels are not exceeded and calculates true totals using current database prices.
+ * Strictly verifies all items belong to expectedBusinessId to prevent cross-merchant checkout.
  */
-export async function validateCart(clientItems: CartLineItem[]): Promise<CartValidationResult> {
+export async function validateCart(
+  clientItems: CartLineItem[],
+  expectedBusinessId?: string
+): Promise<CartValidationResult> {
   const issues: CartValidationResult["issues"] = [];
   const verifiedLineItems: CartLineItem[] = [];
 
@@ -31,6 +35,7 @@ export async function validateCart(clientItems: CartLineItem[]): Promise<CartVal
             id: true,
             title: true,
             published: true,
+            businessId: true,
             images: {
               take: 1,
               orderBy: { position: "asc" },
@@ -45,6 +50,17 @@ export async function validateCart(clientItems: CartLineItem[]): Promise<CartVal
         variantId: item.variantId,
         issue: "PRODUCT_UNAVAILABLE",
         message: `The item "${item.title}" is no longer available in the atelier collection.`,
+        requestedQuantity: item.quantity,
+      });
+      continue;
+    }
+
+    // Cross-tenant verification: item MUST belong to expectedBusinessId
+    if (expectedBusinessId && variant.product.businessId !== expectedBusinessId) {
+      issues.push({
+        variantId: item.variantId,
+        issue: "PRODUCT_UNAVAILABLE",
+        message: `The item "${item.title}" belongs to another merchant and cannot be purchased in this checkout session.`,
         requestedQuantity: item.quantity,
       });
       continue;

@@ -3,6 +3,7 @@ import {
   getAdminProducts,
   getAdminCategories,
 } from "@/services/admin-catalog.service";
+import { requireAdminPageSession } from "@/lib/admin-auth";
 import { ProductListTable } from "@/components/admin/ProductListTable";
 
 interface AdminProductsPageProps {
@@ -17,6 +18,7 @@ interface AdminProductsPageProps {
 export default async function AdminProductsPage({
   searchParams,
 }: AdminProductsPageProps) {
+  const { businessId } = await requireAdminPageSession("VIEW_ADMIN");
   const resolvedParams = await searchParams;
   const search = resolvedParams.search || "";
   const categoryId = resolvedParams.categoryId || "all";
@@ -24,8 +26,9 @@ export default async function AdminProductsPage({
   const page = resolvedParams.page ? parseInt(resolvedParams.page, 10) : 1;
 
   const [categories, { products, pagination }] = await Promise.all([
-    getAdminCategories(),
+    getAdminCategories(businessId),
     getAdminProducts({
+      businessId,
       search,
       categoryId,
       status,

@@ -15,6 +15,7 @@ import {
   Package,
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useStoreTenant } from "@/context/StoreTenantContext";
 import { useSession } from "@/lib/auth-client";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -24,6 +25,7 @@ import { SHIPPING_METHODS } from "@/services/shipping-tax.service";
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, clearCart } = useCart();
+  const { business, basePath } = useStoreTenant();
   const { data: session } = useSession();
 
   // Contact & Shipping State
@@ -128,6 +130,7 @@ export default function CheckoutPage() {
 
     try {
       const payload = {
+        businessId: business?.id || "default-store",
         items: cart.items.map((i) => ({
           variantId: i.variantId,
           quantity: i.quantity,
@@ -182,7 +185,7 @@ export default function CheckoutPage() {
       // Handle redirect
       if (paymentProvider === "MOCK") {
         router.push(
-          `/checkout/success?order_id=${order.id}&payment_id=${paymentSession?.sessionId}&mock_success=true`
+          `${basePath || ""}/checkout/success?order_id=${order.id}&payment_id=${paymentSession?.sessionId}&mock_success=true`
         );
       } else if (paymentSession?.formParameters) {
         // PayHere POST submission flow
@@ -203,7 +206,7 @@ export default function CheckoutPage() {
       } else if (paymentSession?.redirectUrl) {
         window.location.href = paymentSession.redirectUrl;
       } else {
-        router.push(`/checkout/success?order_id=${order.id}`);
+        router.push(`${basePath || ""}/checkout/success?order_id=${order.id}`);
       }
     } catch (err) {
       setErrorMessage(
@@ -221,11 +224,10 @@ export default function CheckoutPage() {
         </div>
         <h1 className="text-3xl font-serif text-charcoal-900">Your Shopping Bag is Empty</h1>
         <p className="text-sm text-charcoal-700 max-w-md mx-auto leading-relaxed">
-          You have no creations selected for checkout. Explore the NEXORA haute horology, fine
-          leathercraft, and couture collections.
+          You have no creations selected for checkout. Explore the curated collections.
         </p>
         <div className="pt-4">
-          <Link href="/products">
+          <Link href={`${basePath || ""}/products`}>
             <Button variant="primary" size="md">
               Explore Collections
             </Button>
@@ -241,7 +243,7 @@ export default function CheckoutPage() {
         {/* Back navigation */}
         <div className="mb-6">
           <Link
-            href="/cart"
+            href={`${basePath || ""}/cart`}
             className="inline-flex items-center text-xs tracking-wider uppercase text-charcoal-700 hover:text-charcoal-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Return to Bag

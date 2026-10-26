@@ -1,38 +1,34 @@
-# NEXORA Commerce — Haute Couture & Bespoke Luxury E-Commerce Platform
+# NEXORA Commerce — Multi-Tenant Luxury & Specialty E-Commerce Platform
 
-> **Version:** 1.0.0 (Phase 6 Complete — Premium Storefront Customization, Theme Engine & Store Branding)  
-> **Architecture:** Modular Monolith with Next.js 15 App Router, TypeScript Strict Mode, Tailwind CSS, Prisma ORM 6, and PostgreSQL 16
+> **Version:** 1.1.0 (Phase 7 Complete — Multi-Tenant SaaS Architecture, Business Onboarding & Strict Store Isolation)  
+> **Architecture:** Modular Multi-Tenant SaaS Monolith with Next.js 15 App Router, TypeScript Strict Mode, Tailwind CSS, Prisma ORM 6, and PostgreSQL 16
 
 ---
 
 ## 1. Project Overview
 
-**NEXORA Commerce** is a production-grade, multi-business e-commerce SaaS platform designed for discerning retailers, physical goods boutiques, and atelier fashion brands.
+**NEXORA Commerce** is an enterprise-grade, multi-tenant e-commerce SaaS application designed to empower independent brands, boutiques, and fashion ateliers with isolated catalogs, bespoke branding, concurrent stock ledgers, and sovereign order operations on a unified cloud infrastructure.
 
-In **Phase 6**, we delivered a comprehensive, database-backed storefront theme engine and interactive Appearance Studio:
+In **Phase 7**, the application transitioned into a full multi-tenant architecture while maintaining 100% backwards compatibility and data preservation for all Phase 1–6 records:
 
-- **Database-Backed Theme Engine (`StoreThemeConfig`):**
-  - PostgreSQL schema supporting active theme identifier, store branding (name, tagline, safe URLs for logo & favicon, contact details), announcement bar configuration, custom primary/secondary color overrides, and homepage section layouts.
-  - Architecture scoped for single-store operation (`businessId: "default-store"`) while natively designed for future Phase 7 multi-tenancy.
-  - Zero arbitrary CSS injection or unsanitized script execution: all color inputs are strictly validated with hexadecimal regex (`#RRGGBB`), URLs require HTTPS/HTTP/relative protocols, and typography tokens map to strictly typed design presets.
-- **Four Visibly Distinct Production Themes:**
-  1. **Editorial Luxury (`editorial-luxury`):** Ivory/cream canvas (`#FAF8F5`, `#F4EFEA`), warm charcoal text (`#1C1917`), bronze accents (`#966A38`), Playfair Display serif typography, classic split hero, editorial card styling with no border radius (`0px`).
-  2. **Midnight Noir (`midnight-noir`):** Dark charcoal/jet black canvas (`#0D0E11`, `#1C1F26`), pearl white text (`#F0EFEB`), metallic gold accents (`#D4AF37`), Cinzel luxury serif typography, cinematic dark hero with glowing accents and subtle luxury card borders.
-  3. **Modern Minimal (`modern-minimal`):** Pure white canvas (`#FFFFFF`, `#F9FAFB`), deep graphite text (`#111827`), slate/cool neutral accents (`#1F2937`), Inter clean sans-serif typography, rounded cards/buttons (`6px`), airy grid layout and high-contrast minimalism.
-  4. **Orange Energy (`orange-energy`):** High-contrast deep black/charcoal (`#0A0A0A`, `#1E1E1E`), clean white text (`#FFFFFF`), kinetic electric orange accents (`#FF5500`), condensed heavy sans typography, high-impact streetwear energy with razor pill buttons.
-- **Protected Admin Appearance Studio (`/admin/appearance`):**
-  - **Theme Presets Tab:** Live cards for all 4 themes showing typography specs, color swatches, and one-click draft selection.
-  - **Store Branding Tab:** Custom store name, tagline, logo URL, favicon URL, contact email/phone, announcement bar controls, and custom primary/secondary hex color overrides with live preview.
-  - **Homepage Sections Tab:** Dynamic reordering (Up/Down controls), visibility toggling, and content customization for all 8 section types (`hero`, `featured_products`, `categories`, `promotional_banner`, `brand_story`, `image_text`, `newsletter`, `benefits`).
-  - **Responsive Live Preview Tab:** Viewport switcher (Desktop 100%, Tablet 768px, Mobile 375px) rendering the storefront within an isolated sandbox frame, plus full-window preview support.
-- **Draft vs. Published Isolation Lifecycle:**
-  - Changes saved in the studio are stored exclusively as drafts (`draftConfig` JSON) in PostgreSQL.
-  - The public live storefront remains completely unaffected until the Store Owner explicitly clicks "Publish to Live Store".
-  - Staff and Store Directors can discard drafts to restore current published settings or reset to safe default Editorial Luxury settings at any time.
-- **End-to-End Visual Verification:**
-  - 36 full-page screenshots capturing all 4 themes across desktop and mobile viewports, responsive preview modes, and administrative studio workflows.
-
----
+- **Multi-Tenant SaaS Data Model:**
+  - `Business`: Unique ID, URL slug (`/store/[slug]`), brand name, discipline type, operational status (`ACTIVE`, `SUSPENDED`, `ONBOARDING`), currency, and contact info.
+  - `BusinessMember`: Connects users to businesses with business-specific roles (`OWNER`, `MANAGER`, `STAFF`). Users can belong to multiple businesses with distinct roles in each.
+  - `BusinessSettings`: Per-tenant operational flags, payment provider settings, inventory tracking, and brand-specific order prefixes (`LUM-`, `APX-`, `NXR-`).
+  - `BusinessInvitation`: Tokenized single-use invitations with 7-day expiration for onboarding team members (`/invite?token=...`).
+  - `BusinessAuditLog`: Cryptographic audit trails for administrative operations stamped with tenant and actor metadata.
+- **Strict Data & Catalog Isolation:**
+  - Composite uniqueness for categories (`@@unique([businessId, slug])`) and products (`@@unique([businessId, slug])`), allowing identical slugs to exist safely across tenants without conflict.
+  - Cross-tenant inventory manipulation prevention: attempts to adjust stock across business boundaries are strictly blocked.
+  - Cart and checkout isolation: client carts are partitioned by business (`nexora_cart_${businessId}`), and checkout rejects mixed-tenant carts with authoritative validation.
+- **Public Multi-Tenant Routing:**
+  - Dedicated public storefronts at `/store/[slug]` (e.g. `/store/lumina-tech`, `/store/apex-kicks`, `/store/nexora`) with dynamic theme resolution, catalog browsing, shopping cart, and checkout.
+  - Transparent root `/` fallback mapped to the flagship `default-store`.
+- **Store Administration & Business Switching:**
+  - Interactive **Store Switcher** in the administration header for instantaneous context switching between authorized businesses.
+  - **Stores Directory (`/admin/businesses`)**: Comprehensive overview of all businesses managed by the user with role badges, status, and catalog metrics.
+  - **Self-Serve Business Onboarding (`/admin/businesses/new`)**: Multi-step onboarding to launch new storefronts with automated theme, setting, and membership provisioning.
+  - **Team Member Management (`/admin/members`)**: Invitation dispatcher, role assigner, and sole-owner protection guard.
 
 ### Previous Milestone Deliverables (Phases 1–5)
 
@@ -140,20 +136,15 @@ Open [http://localhost:3000](http://localhost:3000) for the storefront, or sign 
 ## 5. Automated Testing
 
 ### Unit & Integration Tests (Vitest)
-Executes 159 automated tests across 18 test files verifying RBAC matrix enforcement, product lifecycle, duplicate SKU prevention, category deletion guards, audited inventory adjustments, concurrency-safe stock reservations, authoritative order pricing, webhook signature verification, Phase 5 order transitions, shipment tracking URL validation, cancellation workflows, return quantity limits, support ticket privacy, customer spend aggregations, theme draft-publish isolation, CSS variable generation, safe URL validation, and theme reset protections:
+Executes 177 automated tests across 19 test files verifying multi-tenant catalog isolation, composite slug uniqueness, cross-tenant inventory stock blocks, cart and checkout tenant protection, tenant order prefixing, support ticket scoping, business membership authorization, sole OWNER protection, RBAC matrix enforcement, product lifecycle, duplicate SKU prevention, category deletion guards, audited inventory adjustments, concurrency-safe stock reservations, authoritative order pricing, webhook signature verification, Phase 5 order transitions, shipment tracking URL validation, cancellation workflows, return quantity limits, support ticket privacy, customer spend aggregations, theme draft-publish isolation, CSS variable generation, safe URL validation, and theme reset protections:
 ```powershell
-npm run test -- --run
+npm run test
 ```
 
 ### End-to-End Browser Tests (Playwright)
-Executes 20 full browser tests across desktop and mobile viewports, including unauthorized access denial, customer rejection, store director authentication, product creation, stock adjustment, audit ledger entry, full customer checkout, order confirmation, client order history, admin order filtering, shipment tracking dispatch, customer support ticket creation, patron dossier inspection, concierge support replies, appearance studio RBAC protection, theme preset browsing, draft modification isolation, responsive iframe previewing, theme publishing, and defaults restoration:
+Executes comprehensive browser automation suites across multi-tenant storefronts, cart isolation, administrative switching, business onboarding, appearance studio, order management, and patron support:
 ```powershell
-npx playwright test e2e/appearance.spec.ts e2e/storefront.spec.ts e2e/admin.spec.ts e2e/operations.spec.ts e2e/orders.spec.ts
-```
-
-### Visual Verification Screenshots Capture
-```powershell
-npx playwright test e2e/screenshots.spec.ts
+npx playwright test e2e/multi-tenant.spec.ts e2e/appearance.spec.ts e2e/storefront.spec.ts e2e/admin.spec.ts e2e/operations.spec.ts e2e/orders.spec.ts
 ```
 
 ---
@@ -200,3 +191,10 @@ Visual verification artifacts are saved to:
 - `34-admin-appearance-responsive-preview.png` — Admin Appearance Studio live responsive preview with viewport switcher
 - `35-theme-midnight-noir-mobile.png` — Midnight Noir theme mobile responsive viewport
 - `36-theme-orange-energy-mobile.png` — Orange Energy theme mobile responsive viewport
+- `37-store-lumina-tech-homepage.png` — Lumina Audio & Tech multi-tenant public storefront (`/store/lumina-tech`)
+- `38-store-apex-kicks-homepage.png` — Apex Kicks Streetwear multi-tenant public storefront (`/store/apex-kicks`)
+- `39-store-lumina-tech-catalog.png` — Lumina Audio isolated product catalog with Modern Minimal layout
+- `40-admin-business-switcher-dropdown.png` — Admin multi-tenant store switcher dropdown with one-click store changing
+- `41-admin-businesses-directory.png` — Admin Stores Directory (`/admin/businesses`) listing managed tenants and metrics
+- `42-admin-team-members.png` — Store Team & Staff Administration (`/admin/members`) with invitations and role matrix
+- `43-admin-new-store-onboarded.png` — Automated verification of self-serve store onboarding flow (`/admin/businesses/new`)

@@ -22,7 +22,7 @@ export default async function AdminSupportPage({
     selectedTicketId?: string;
   }>;
 }) {
-  await requireAdminPageSession("VIEW_ORDERS");
+  const { businessId } = await requireAdminPageSession("VIEW_ORDERS");
   const params = await searchParams;
 
   const page = params.page ? parseInt(params.page, 10) : 1;
@@ -32,6 +32,7 @@ export default async function AdminSupportPage({
   const selectedTicketId = params.selectedTicketId || undefined;
 
   const { tickets } = await getAdminTickets({
+    businessId,
     status,
     priority,
     search,

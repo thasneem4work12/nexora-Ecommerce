@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import {
   calculateShipping,
   calculateTax,
@@ -18,14 +19,25 @@ import type {
  * Generates unique, prestigious order reference code.
  * Format: NXR-YYYY-XXXXXX (e.g. NXR-2026-K7W92Q)
  */
-export async function generateOrderNumber(): Promise<string> {
+export async function generateOrderNumber(businessId?: string): Promise<string> {
+  let prefix = "NXR";
+  if (businessId) {
+    const settings = await prisma.businessSettings.findUnique({
+      where: { businessId },
+      select: { orderPrefix: true },
+    });
+    if (settings?.orderPrefix) {
+      prefix = settings.orderPrefix.toUpperCase();
+    }
+  }
+
   const year = new Date().getFullYear();
   let orderNumber = "";
   let exists = true;
 
   while (exists) {
     const randomSuffix = crypto.randomBytes(3).toString("hex").toUpperCase();
-    orderNumber = `NXR-${year}-${randomSuffix}`;
+    orderNumber = `${prefix}-${year}-${randomSuffix}`;
 
     const existing = await prisma.order.findUnique({
       where: { orderNumber },
@@ -51,8 +63,10 @@ export async function createOrderFromCheckout(
     throw new Error("Cannot checkout with an empty cart.");
   }
 
+  const targetBusinessId = input.businessId || DEFAULT_BUSINESS_ID;
+
   // 1. Proactively sweep any expired reservations across the store
-  await releaseExpiredReservations().catch((err) =>
+  await releaseExpiredReservations(targetBusinessId).catch((err) =>
     console.error("Expired reservation cleanup notice:", err)
   );
 
@@ -100,6 +114,12 @@ export async function createOrderFromCheckout(
 
       if (!variant) {
         throw new Error(`Variant not found with ID: ${item.variantId}`);
+      }
+
+      if (variant.product.businessId !== targetBusinessId) {
+        throw new Error(
+          `Cross-tenant checkout error: item "${variant.product.title}" does not belong to this store.`
+        );
       }
 
       if (!variant.product.published || variant.product.isArchived) {
@@ -180,11 +200,12 @@ export async function createOrderFromCheckout(
       billingAddressId = billingAddress.id;
     }
 
-    const orderNumber = await generateOrderNumber();
+    const orderNumber = await generateOrderNumber(targetBusinessId);
 
     // 7. Create Order Record
     const order = await tx.order.create({
       data: {
+        businessId: targetBusinessId,
         orderNumber,
         userId: authenticatedUserId || null,
         guestEmail: !authenticatedUserId ? input.guestEmail?.trim() : null,
@@ -251,15 +272,21 @@ export async function createOrderFromCheckout(
  */
 export async function getOrderForCustomer(
   orderIdOrNumber: string,
-  requester: { userId?: string; guestEmail?: string; isAdmin?: boolean }
+  requester: { userId?: string; guestEmail?: string; isAdmin?: boolean; businessId?: string }
 ): Promise<OrderWithDetails | null> {
+  const whereClause: Record<string, unknown> = {
+    OR: [
+      { id: orderIdOrNumber },
+      { orderNumber: orderIdOrNumber },
+    ],
+  };
+
+  if (requester.businessId) {
+    whereClause.businessId = requester.businessId;
+  }
+
   const order = await prisma.order.findFirst({
-    where: {
-      OR: [
-        { id: orderIdOrNumber },
-        { orderNumber: orderIdOrNumber },
-      ],
-    },
+    where: whereClause,
     include: {
       items: true,
       shippingAddress: true,
@@ -310,9 +337,12 @@ export async function getOrderForCustomer(
 /**
  * Retrieves order history for an authenticated customer.
  */
-export async function getCustomerOrderHistory(userId: string) {
+export async function getCustomerOrderHistory(userId: string, businessId?: string) {
   return await prisma.order.findMany({
-    where: { userId },
+    where: {
+      userId,
+      ...(businessId ? { businessId } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       items: true,

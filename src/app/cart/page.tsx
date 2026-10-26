@@ -5,11 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, Trash2, Plus, Minus, ArrowRight, ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useStoreTenant } from "@/context/StoreTenantContext";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 export default function CartPage() {
   const { cart, updateQuantity, removeItem, clearCart } = useCart();
+  const { basePath } = useStoreTenant();
+  const catalogHref = `${basePath}/products`;
+  const checkoutHref = `${basePath}/checkout`;
 
   if (cart.items.length === 0) {
     return (
@@ -25,7 +29,7 @@ export default function CartPage() {
             There are no pieces currently held in your private bag. Browse our atelier catalog to discover limited handcrafted items.
           </p>
           <div>
-            <Link href="/products">
+            <Link href={catalogHref}>
               <Button variant="primary" size="md">
                 Discover Catalog <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -40,7 +44,7 @@ export default function CartPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
       <div className="mb-8">
         <Link
-          href="/products"
+          href={catalogHref}
           className="inline-flex items-center text-xs uppercase tracking-luxury text-charcoal-500 hover:text-bronze transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5 mr-2" /> Continue Shopping
@@ -167,7 +171,7 @@ export default function CartPage() {
             </div>
 
             <div className="pt-2">
-              <Link href="/checkout" className="block w-full">
+              <Link href={checkoutHref} className="block w-full">
                 <Button variant="primary" size="lg" className="w-full">
                   Proceed to Checkout <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>

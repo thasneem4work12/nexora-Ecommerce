@@ -11,11 +11,11 @@ export const metadata = {
 };
 
 export default async function AdminAppearancePage() {
-  const { user } = await requireAdminPageSession("VIEW_APPEARANCE");
+  const { user, businessId } = await requireAdminPageSession("VIEW_APPEARANCE");
 
-  const published = await getStoreAppearance({ previewDraft: false });
+  const published = await getStoreAppearance({ previewDraft: false, businessId });
   const dbConfig = await prisma.storeThemeConfig.findUnique({
-    where: { businessId: "default-store" },
+    where: { businessId },
   });
 
   const draft = (dbConfig?.draftConfig as Record<string, unknown>) || null;

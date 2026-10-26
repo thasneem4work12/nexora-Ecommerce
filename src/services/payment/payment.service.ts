@@ -76,6 +76,7 @@ export async function initiateOrderPayment(
   // 1. Create or retrieve pending Payment record
   const payment = await prisma.payment.create({
     data: {
+      businessId: order.businessId,
       orderId: order.id,
       provider: provider.id,
       status: "PENDING",
@@ -187,6 +188,7 @@ export async function processPaymentWebhook(
 
     await tx.paymentEvent.create({
       data: {
+        businessId: order.businessId,
         paymentId: paymentRecord?.id || null,
         orderId: order.id,
         provider: provider.id,
@@ -305,6 +307,7 @@ export async function processPaymentWebhook(
             });
             await tx.inventoryMovement.create({
               data: {
+                businessId: order.businessId,
                 variantId: variant.id,
                 quantityChange: -item.quantity,
                 previousStock,

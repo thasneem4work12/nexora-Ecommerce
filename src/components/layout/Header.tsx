@@ -9,31 +9,38 @@ import { useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import type { StoreAppearanceConfig } from "@/types/theme";
 
+import { useStoreTenant } from "@/context/StoreTenantContext";
+
 interface HeaderProps {
   appearance?: (StoreAppearanceConfig & { isPreview?: boolean; hasDraft?: boolean }) | null;
 }
 
-export function Header({ appearance }: HeaderProps) {
+export function Header({ appearance: propAppearance }: HeaderProps) {
   const pathname = usePathname();
   const { cart, openCart } = useCart();
   const { data: session } = useSession();
+  const { business, appearance: tenantAppearance, basePath } = useStoreTenant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const storeName = appearance?.storeName || "NEXORA";
+  const appearance = (basePath ? tenantAppearance : null) || propAppearance || tenantAppearance;
+  const storeName = appearance?.storeName || business?.name || "NEXORA";
   const storeTagline = appearance?.storeTagline || "Haute Couture";
   const showAnnouncement = appearance?.announcementEnabled ?? true;
   const announcementText =
     appearance?.announcementText || "Complimentary Worldwide Delivery on Orders Over $150";
-  const announcementLink = appearance?.announcementLink || "/products";
+  const announcementLink = appearance?.announcementLink || `${basePath}/products`;
   const isPreview = appearance?.isPreview || false;
 
+  const homeHref = basePath || "/";
+  const catalogHref = `${basePath}/products`;
+
   const navLinks = [
-    { href: "/products", label: "Catalog" },
-    { href: "/products?category=apparel", label: "Apparel" },
-    { href: "/products?category=footwear", label: "Footwear" },
-    { href: "/products?category=accessories", label: "Accessories" },
+    { href: catalogHref, label: "Catalog" },
+    { href: `${catalogHref}?category=apparel`, label: "Apparel" },
+    { href: `${catalogHref}?category=footwear`, label: "Footwear" },
+    { href: `${catalogHref}?category=accessories`, label: "Accessories" },
   ];
 
   const handleExitPreview = async () => {
@@ -103,7 +110,7 @@ export function Header({ appearance }: HeaderProps) {
 
           {/* Brand Logo / Title */}
           <div className="flex items-center">
-            <Link href="/" className="flex flex-col items-center sm:items-start group">
+            <Link href={homeHref} className="flex flex-col items-center sm:items-start group">
               {appearance?.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -159,7 +166,7 @@ export function Header({ appearance }: HeaderProps) {
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (searchQuery.trim()) {
-                      window.location.href = `/products?search=${encodeURIComponent(searchQuery.trim())}`;
+                      window.location.href = `${catalogHref}?search=${encodeURIComponent(searchQuery.trim())}`;
                       setSearchOpen(false);
                     }
                   }}

@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import type { InventoryMovementType, Prisma } from "@prisma/client";
 
 export interface StockAdjustmentInput {
+  businessId?: string;
   variantId: string;
   delta: number; // positive to add stock, negative to remove
   type: InventoryMovementType;
@@ -31,11 +33,13 @@ export async function adjustStock(input: StockAdjustmentInput) {
   }
 
   return await prisma.$transaction(async (tx) => {
+    const businessId = input.businessId || DEFAULT_BUSINESS_ID;
+
     // Concurrency safety: acquire exclusive PostgreSQL row-level lock on the variant.
     // Serializes concurrent requests on the same variant and prevents race conditions.
     await tx.$queryRaw`SELECT id FROM "product_variants" WHERE id = ${input.variantId} FOR UPDATE`;
 
-    // 1. Fetch variant with current stock
+    // 1. Fetch variant with current stock and product businessId
     const variant = await tx.productVariant.findUnique({
       where: { id: input.variantId },
       include: {
@@ -44,6 +48,7 @@ export async function adjustStock(input: StockAdjustmentInput) {
             id: true,
             title: true,
             published: true,
+            businessId: true,
           },
         },
       },
@@ -51,6 +56,12 @@ export async function adjustStock(input: StockAdjustmentInput) {
 
     if (!variant) {
       throw new Error(`Variant not found with ID: ${input.variantId}`);
+    }
+
+    if (input.businessId && variant.product.businessId !== input.businessId) {
+      throw new Error(
+        `Cross-tenant access denied: Variant "${variant.id}" does not belong to business "${input.businessId}".`
+      );
     }
 
     const previousStock = variant.stock;
@@ -74,6 +85,7 @@ export async function adjustStock(input: StockAdjustmentInput) {
     // 4. Create audit record
     const movement = await tx.inventoryMovement.create({
       data: {
+        businessId: variant.product.businessId || businessId,
         variantId: variant.id,
         quantityChange: input.delta,
         previousStock,
@@ -122,14 +134,19 @@ export async function setLowStockThreshold(
 /**
  * Retrieves paginated list of variants with current inventory and low stock indicators.
  */
-export async function getInventoryItems(filter: InventoryFilter = {}) {
+export async function getInventoryItems(
+  filter: InventoryFilter & { businessId?: string } = {},
+  businessIdArg?: string
+) {
   const page = Math.max(1, filter.page ?? 1);
   const limit = Math.min(100, Math.max(1, filter.limit ?? 20));
   const skip = (page - 1) * limit;
+  const businessId = filter.businessId || businessIdArg || DEFAULT_BUSINESS_ID;
 
-  // We can build the where query for variants
+  // We can build the where query for variants scoped to the tenant business
   const where: Prisma.ProductVariantWhereInput = {
     product: {
+      businessId,
       isArchived: false,
     },
   };
@@ -144,8 +161,6 @@ export async function getInventoryItems(filter: InventoryFilter = {}) {
   }
 
   // If lowStockOnly is selected, we filter in query or post-process
-  // In Prisma, comparing columns directly (stock <= lowStockThreshold) is done via raw query or fetching
-  // We can query all matching and filter, or fetch matching
   const [totalRaw, variants] = await prisma.$transaction([
     prisma.productVariant.count({ where }),
     prisma.productVariant.findMany({
@@ -157,6 +172,7 @@ export async function getInventoryItems(filter: InventoryFilter = {}) {
         product: {
           select: {
             id: true,
+            businessId: true,
             title: true,
             category: true,
             published: true,
@@ -193,6 +209,7 @@ export async function getInventoryItems(filter: InventoryFilter = {}) {
     isActive: v.isActive,
     product: {
       id: v.product.id,
+      businessId: v.product.businessId,
       title: v.product.title,
       category: v.product.category,
       published: v.product.published,
@@ -227,18 +244,26 @@ export async function getInventoryItems(filter: InventoryFilter = {}) {
 }
 
 /**
- * Retrieves auditable movement history.
+ * Retrieves auditable movement history scoped to businessId.
  */
-export async function getInventoryMovements(params: {
-  variantId?: string;
-  page?: number;
-  limit?: number;
-} = {}) {
+export async function getInventoryMovements(
+  params: {
+    variantId?: string;
+    page?: number;
+    limit?: number;
+    businessId?: string;
+  } = {},
+  businessIdArg?: string
+) {
   const page = Math.max(1, params.page ?? 1);
   const limit = Math.min(100, Math.max(1, params.limit ?? 25));
   const skip = (page - 1) * limit;
+  const businessId = params.businessId || businessIdArg || DEFAULT_BUSINESS_ID;
 
-  const where = params.variantId ? { variantId: params.variantId } : {};
+  const where: Prisma.InventoryMovementWhereInput = {
+    businessId,
+    ...(params.variantId ? { variantId: params.variantId } : {}),
+  };
 
   const [total, movements] = await prisma.$transaction([
     prisma.inventoryMovement.count({ where }),

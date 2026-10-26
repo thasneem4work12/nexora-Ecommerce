@@ -9,6 +9,7 @@ import {
 } from "./admin-auth";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { BusinessRole } from "@prisma/client";
 
 vi.mock("next/headers", () => ({
   headers: vi.fn().mockResolvedValue(new Headers()),
@@ -29,6 +30,15 @@ vi.mock("@/lib/prisma", () => ({
     },
     session: {
       findUnique: vi.fn(),
+    },
+    business: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+    },
+    businessMember: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      upsert: vi.fn(),
     },
   },
 }));
@@ -157,6 +167,34 @@ describe("requireAdminApi Server Guard Enforcement", () => {
 
     vi.mocked(prisma.user.findUnique).mockResolvedValue(mockUser);
     vi.mocked(prisma.session.findUnique).mockResolvedValue(mockSession);
+
+    if (role === "CUSTOMER") {
+      vi.mocked(prisma.businessMember.findUnique).mockResolvedValue(null);
+      vi.mocked(prisma.businessMember.findMany).mockResolvedValue([]);
+    } else {
+      vi.mocked(prisma.businessMember.findUnique).mockResolvedValue({
+        id: `bm-${role.toLowerCase()}-1`,
+        businessId: "default-store",
+        userId: mockUser.id,
+        role: role as unknown as BusinessRole,
+        title: `${role} Lead`,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        business: {
+          id: "default-store",
+          slug: "nexora",
+          name: "NEXORA Haute Couture",
+          type: "LUXURY_FASHION",
+          status: "ACTIVE",
+          currency: "USD",
+          contactEmail: "concierge@nexoracommerce.com",
+          contactPhone: "+1800123456",
+          description: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      } as unknown as Awaited<ReturnType<typeof prisma.businessMember.findUnique>>);
+    }
 
     return { mockUser, mockSession };
   }

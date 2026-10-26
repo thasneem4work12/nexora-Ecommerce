@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -44,7 +45,11 @@ export type UpdateProductInput = z.input<typeof UpdateProductSchema>;
 /**
  * Generates an SEO-friendly slug and ensures uniqueness in PostgreSQL.
  */
-export async function generateUniqueSlug(title: string, existingId?: string): Promise<string> {
+export async function generateUniqueSlug(
+  title: string,
+  existingId?: string,
+  businessId: string = DEFAULT_BUSINESS_ID
+): Promise<string> {
   const baseSlug = title
     .toLowerCase()
     .trim()
@@ -56,8 +61,8 @@ export async function generateUniqueSlug(title: string, existingId?: string): Pr
   let count = 1;
 
   while (true) {
-    const existing = await prisma.product.findUnique({
-      where: { slug },
+    const existing = await prisma.product.findFirst({
+      where: { businessId, slug },
       select: { id: true },
     });
 
@@ -73,7 +78,7 @@ export async function generateUniqueSlug(title: string, existingId?: string): Pr
 /**
  * Retrieves dashboard metrics computed directly from PostgreSQL.
  */
-export async function getDashboardMetrics() {
+export async function getDashboardMetrics(businessId: string = DEFAULT_BUSINESS_ID) {
   const [
     totalProducts,
     publishedProducts,
@@ -83,22 +88,23 @@ export async function getDashboardMetrics() {
     recentMovements,
   ] = await prisma.$transaction([
     // 1. Total active products
-    prisma.product.count({ where: { isArchived: false } }),
+    prisma.product.count({ where: { businessId, isArchived: false } }),
     // 2. Published products
-    prisma.product.count({ where: { isArchived: false, published: true } }),
+    prisma.product.count({ where: { businessId, isArchived: false, published: true } }),
     // 3. Archived products
-    prisma.product.count({ where: { isArchived: true } }),
+    prisma.product.count({ where: { businessId, isArchived: true } }),
     // 4. Total active variants
     prisma.productVariant.count({
-      where: { product: { isArchived: false } },
+      where: { product: { businessId, isArchived: false } },
     }),
     // 5. Variants stock query
     prisma.productVariant.findMany({
-      where: { product: { isArchived: false } },
+      where: { product: { businessId, isArchived: false } },
       select: { stock: true, lowStockThreshold: true },
     }),
     // 6. Recent inventory movements
     prisma.inventoryMovement.findMany({
+      where: { businessId },
       take: 8,
       orderBy: { createdAt: "desc" },
       include: {
@@ -136,18 +142,23 @@ export async function getDashboardMetrics() {
 /**
  * Retrieves admin products list with comprehensive filtering.
  */
-export async function getAdminProducts(params: {
-  search?: string;
-  categoryId?: string;
-  status?: "all" | "published" | "draft" | "archived";
-  page?: number;
-  limit?: number;
-} = {}) {
+export async function getAdminProducts(
+  params: {
+    search?: string;
+    categoryId?: string;
+    status?: "all" | "published" | "draft" | "archived";
+    page?: number;
+    limit?: number;
+    businessId?: string;
+  } = {},
+  businessId?: string
+) {
   const page = Math.max(1, params.page ?? 1);
   const limit = Math.min(100, Math.max(1, params.limit ?? 15));
   const skip = (page - 1) * limit;
 
-  const where: Prisma.ProductWhereInput = {};
+  const effectiveBusinessId = params.businessId || businessId || DEFAULT_BUSINESS_ID;
+  const where: Prisma.ProductWhereInput = { businessId: effectiveBusinessId };
 
   // Status filter
   if (params.status === "archived") {
@@ -247,9 +258,12 @@ export async function getAdminProducts(params: {
 /**
  * Retrieves a single product with all images and variants for the admin editor.
  */
-export async function getAdminProductById(id: string) {
-  const product = await prisma.product.findUnique({
-    where: { id },
+export async function getAdminProductById(id: string, businessId?: string) {
+  const where: Prisma.ProductWhereInput = { id };
+  if (businessId) where.businessId = businessId;
+
+  const product = await prisma.product.findFirst({
+    where,
     include: {
       categoryRef: true,
       images: {
@@ -276,9 +290,13 @@ export async function getAdminProductById(id: string) {
 /**
  * Creates a new product with variants, initial inventory movements, and images.
  */
-export async function createProduct(input: CreateProductInput, adminId: string) {
+export async function createProduct(
+  input: CreateProductInput,
+  adminId: string,
+  businessId: string = DEFAULT_BUSINESS_ID
+) {
   const validated = CreateProductSchema.parse(input);
-  const slug = await generateUniqueSlug(validated.slug || validated.title);
+  const slug = await generateUniqueSlug(validated.slug || validated.title, undefined, businessId);
 
   // Validate SKU uniqueness across the database
   for (const v of validated.variants) {
@@ -293,8 +311,8 @@ export async function createProduct(input: CreateProductInput, adminId: string) 
   // Resolve category
   let categoryName = validated.categoryName || "Uncategorized";
   if (validated.categoryId) {
-    const cat = await prisma.category.findUnique({
-      where: { id: validated.categoryId },
+    const cat = await prisma.category.findFirst({
+      where: { id: validated.categoryId, businessId },
     });
     if (cat) categoryName = cat.name;
   }
@@ -303,6 +321,7 @@ export async function createProduct(input: CreateProductInput, adminId: string) 
     // 1. Create product
     const product = await tx.product.create({
       data: {
+        businessId,
         title: validated.title.trim(),
         slug,
         description: validated.description.trim(),
@@ -346,6 +365,7 @@ export async function createProduct(input: CreateProductInput, adminId: string) 
       if (v.stock > 0) {
         await tx.inventoryMovement.create({
           data: {
+            businessId,
             variantId: variant.id,
             quantityChange: v.stock,
             previousStock: 0,
@@ -373,10 +393,14 @@ export async function createProduct(input: CreateProductInput, adminId: string) 
 export async function updateProduct(
   id: string,
   input: UpdateProductInput,
-  adminId: string
+  adminId: string,
+  businessId?: string
 ) {
-  const existingProduct = await prisma.product.findUnique({
-    where: { id },
+  const where: Prisma.ProductWhereInput = { id };
+  if (businessId) where.businessId = businessId;
+
+  const existingProduct = await prisma.product.findFirst({
+    where,
     include: { variants: true, images: true },
   });
 
@@ -386,9 +410,9 @@ export async function updateProduct(
 
   let slug = existingProduct.slug;
   if (input.title && input.title !== existingProduct.title) {
-    slug = await generateUniqueSlug(input.slug || input.title, existingProduct.id);
+    slug = await generateUniqueSlug(input.slug || input.title, existingProduct.id, existingProduct.businessId);
   } else if (input.slug && input.slug !== existingProduct.slug) {
-    slug = await generateUniqueSlug(input.slug, existingProduct.id);
+    slug = await generateUniqueSlug(input.slug, existingProduct.id, existingProduct.businessId);
   }
 
   // Resolve category name if categoryId changed
@@ -512,9 +536,19 @@ export async function updateProduct(
 /**
  * Toggles product publication status.
  */
-export async function setProductPublishStatus(id: string, published: boolean) {
+export async function setProductPublishStatus(
+  id: string,
+  published: boolean,
+  businessId?: string
+) {
+  const where: Prisma.ProductWhereUniqueInput = { id };
+  if (businessId) {
+    const p = await prisma.product.findFirst({ where: { id, businessId } });
+    if (!p) throw new Error("Product not found in this business");
+  }
+
   const updated = await prisma.product.update({
-    where: { id },
+    where,
     data: { published },
   });
 
@@ -525,9 +559,15 @@ export async function setProductPublishStatus(id: string, published: boolean) {
 /**
  * Archives a product (soft delete) preserving historical order and inventory records.
  */
-export async function archiveProduct(id: string) {
+export async function archiveProduct(id: string, businessId?: string) {
+  const where: Prisma.ProductWhereUniqueInput = { id };
+  if (businessId) {
+    const p = await prisma.product.findFirst({ where: { id, businessId } });
+    if (!p) throw new Error("Product not found in this business");
+  }
+
   const updated = await prisma.product.update({
-    where: { id },
+    where,
     data: {
       isArchived: true,
       archivedAt: new Date(),
@@ -542,9 +582,15 @@ export async function archiveProduct(id: string) {
 /**
  * Restores an archived product.
  */
-export async function restoreProduct(id: string) {
+export async function restoreProduct(id: string, businessId?: string) {
+  const where: Prisma.ProductWhereUniqueInput = { id };
+  if (businessId) {
+    const p = await prisma.product.findFirst({ where: { id, businessId } });
+    if (!p) throw new Error("Product not found in this business");
+  }
+
   const updated = await prisma.product.update({
-    where: { id },
+    where,
     data: {
       isArchived: false,
       archivedAt: null,
@@ -558,8 +604,9 @@ export async function restoreProduct(id: string) {
 /**
  * Retrieves all categories with associated product count for the admin manager.
  */
-export async function getAdminCategories() {
+export async function getAdminCategories(businessId: string = DEFAULT_BUSINESS_ID) {
   const categories = await prisma.category.findMany({
+    where: { businessId },
     orderBy: { name: "asc" },
     include: {
       _count: {
@@ -583,14 +630,17 @@ export async function getAdminCategories() {
 }
 
 /**
- * Creates a new category.
+ * Creates a new category scoped to a business.
  */
-export async function createCategory(input: {
-  name: string;
-  slug?: string;
-  description?: string;
-  imageUrl?: string;
-}) {
+export async function createCategory(
+  input: {
+    name: string;
+    slug?: string;
+    description?: string;
+    imageUrl?: string;
+  },
+  businessId: string = DEFAULT_BUSINESS_ID
+) {
   const name = input.name.trim();
   const slug = (input.slug || name)
     .toLowerCase()
@@ -598,8 +648,8 @@ export async function createCategory(input: {
     .replace(/[\s-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  const existing = await prisma.category.findUnique({
-    where: { slug },
+  const existing = await prisma.category.findFirst({
+    where: { businessId, slug },
   });
 
   if (existing) {
@@ -608,6 +658,7 @@ export async function createCategory(input: {
 
   const category = await prisma.category.create({
     data: {
+      businessId,
       name,
       slug,
       description: input.description?.trim() || null,
@@ -620,7 +671,7 @@ export async function createCategory(input: {
 }
 
 /**
- * Updates an existing category.
+ * Updates an existing category within its business.
  */
 export async function updateCategory(
   id: string,
@@ -629,17 +680,21 @@ export async function updateCategory(
     slug?: string;
     description?: string;
     imageUrl?: string;
-  }
+  },
+  businessId?: string
 ) {
-  const existing = await prisma.category.findUnique({ where: { id } });
+  const where: Prisma.CategoryWhereInput = { id };
+  if (businessId) where.businessId = businessId;
+
+  const existing = await prisma.category.findFirst({ where });
   if (!existing) {
     throw new Error(`Category not found with ID: ${id}`);
   }
 
   let slug = existing.slug;
   if (input.slug && input.slug !== existing.slug) {
-    const slugConflict = await prisma.category.findUnique({
-      where: { slug: input.slug },
+    const slugConflict = await prisma.category.findFirst({
+      where: { businessId: existing.businessId, slug: input.slug },
     });
     if (slugConflict && slugConflict.id !== id) {
       throw new Error(`Category slug "${input.slug}" is already in use.`);
@@ -664,7 +719,15 @@ export async function updateCategory(
 /**
  * Safely deletes a category if no products are linked.
  */
-export async function deleteCategory(id: string) {
+export async function deleteCategory(id: string, businessId?: string) {
+  const where: Prisma.CategoryWhereInput = { id };
+  if (businessId) where.businessId = businessId;
+
+  const existing = await prisma.category.findFirst({ where });
+  if (!existing) {
+    throw new Error(`Category not found with ID: ${id}`);
+  }
+
   const linkedProducts = await prisma.product.count({
     where: { categoryId: id },
   });

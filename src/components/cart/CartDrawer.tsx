@@ -5,11 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { X, Plus, Minus, Trash2, ShoppingBag, ArrowRight } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useStoreTenant } from "@/context/StoreTenantContext";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 
 export function CartDrawer() {
   const { cart, isCartOpen, closeCart, updateQuantity, removeItem } = useCart();
+  const { basePath } = useStoreTenant();
+  const checkoutHref = `${basePath}/checkout`;
+  const catalogHref = `${basePath}/products`;
 
   if (!isCartOpen) return null;
 
@@ -67,7 +71,7 @@ export function CartDrawer() {
                   onClick={closeCart}
                   className="mt-2"
                 >
-                  <Link href="/products" className="flex items-center">
+                  <Link href={catalogHref} className="flex items-center">
                     Discover Catalog <ArrowRight className="w-3.5 h-3.5 ml-2" />
                   </Link>
                 </Button>
@@ -171,7 +175,7 @@ export function CartDrawer() {
               </div>
 
               <div className="pt-2">
-                <Link href="/checkout" onClick={closeCart} className="block w-full">
+                <Link href={checkoutHref} onClick={closeCart} className="block w-full">
                   <Button variant="primary" size="md" className="w-full flex items-center justify-center">
                     Proceed to Checkout <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>

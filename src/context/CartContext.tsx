@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { CartLineItem, CartSummary } from "@/types";
 
+import { useStoreTenant } from "./StoreTenantContext";
+
 interface CartContextType {
   cart: CartSummary;
   isCartOpen: boolean;
@@ -16,40 +18,50 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const STORAGE_KEY = "nexora_cart_v1";
+const BASE_STORAGE_KEY = "nexora_cart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  const { business } = useStoreTenant();
+  const businessId = business?.id || "default-store";
+  const storageKey = `${BASE_STORAGE_KEY}_${businessId}`;
+
   const [items, setItems] = useState<CartLineItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load cart from localStorage on client mount
+  // Load cart from localStorage whenever businessId changes
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         setItems(JSON.parse(stored));
+      } else {
+        setItems([]);
       }
     } catch {
-      // Ignore localStorage errors
+      setItems([]);
     } finally {
       setIsLoaded(true);
     }
-  }, []);
+  }, [storageKey]);
 
   // Persist cart to localStorage whenever items change
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+        localStorage.setItem(storageKey, JSON.stringify(items));
       } catch {
         // Ignore localStorage errors
       }
     }
-  }, [items, isLoaded]);
+  }, [items, isLoaded, storageKey]);
 
   const addItem = (item: CartLineItem) => {
     setItems((prev) => {
+      const itemWithBusiness = {
+        ...item,
+        businessId: item.businessId || businessId,
+      };
       const existing = prev.find((i) => i.variantId === item.variantId);
       if (existing) {
         const newQty = Math.min(existing.quantity + item.quantity, item.maxStock);
@@ -57,7 +69,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           i.variantId === item.variantId ? { ...i, quantity: newQty } : i
         );
       }
-      return [...prev, item];
+      return [...prev, itemWithBusiness];
     });
     setIsCartOpen(true);
   };

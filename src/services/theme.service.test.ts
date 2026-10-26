@@ -19,15 +19,23 @@ describe("Store Theme Engine & Appearance Studio Service", () => {
   const TEST_BUSINESS_ID = `test-store-${Date.now()}`;
 
   beforeAll(async () => {
-    // Clean up any test configuration if exists
-    await prisma.storeThemeConfig.deleteMany({
-      where: { businessId: TEST_BUSINESS_ID },
+    // Ensure test business exists for foreign key constraint
+    await prisma.business.create({
+      data: {
+        id: TEST_BUSINESS_ID,
+        slug: `theme-test-${Date.now()}`,
+        name: "Theme Test Boutique",
+        status: "ACTIVE",
+      },
     });
   });
 
   afterAll(async () => {
     await prisma.storeThemeConfig.deleteMany({
       where: { businessId: TEST_BUSINESS_ID },
+    });
+    await prisma.business.deleteMany({
+      where: { id: TEST_BUSINESS_ID },
     });
   });
 

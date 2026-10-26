@@ -15,12 +15,15 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import { requireAdminPageSession } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/Button";
 
 export default async function AdminDashboardPage() {
+  const { businessId } = await requireAdminPageSession("VIEW_ADMIN");
+
   const [metrics, orderMetrics] = await Promise.all([
-    getDashboardMetrics(),
-    getAdminOrderMetrics(),
+    getDashboardMetrics(businessId),
+    getAdminOrderMetrics(businessId),
   ]);
 
   return (

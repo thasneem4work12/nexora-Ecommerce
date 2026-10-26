@@ -14,9 +14,11 @@ import {
 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { useStoreTenant } from "@/context/StoreTenantContext";
 import type { OrderWithDetails } from "@/types/order";
 
 function CheckoutSuccessContent() {
+  const { basePath } = useStoreTenant();
   const searchParams = useSearchParams();
   const orderId = searchParams.get("order_id");
   const mockSuccess = searchParams.get("mock_success") === "true";
@@ -302,7 +304,7 @@ function CheckoutSuccessContent() {
                 View Account Orders <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
-            <Link href="/products">
+            <Link href={`${basePath || ""}/products`}>
               <Button variant="outline" size="md">
                 Continue Browsing
               </Button>

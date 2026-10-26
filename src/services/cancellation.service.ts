@@ -7,6 +7,7 @@ export interface RequestCancellationInput {
   userId?: string; // If customer requested
   requestedBy: "CUSTOMER" | "STAFF";
   reason: string;
+  businessId?: string;
 }
 
 export interface ReviewCancellationInput {
@@ -14,6 +15,7 @@ export interface ReviewCancellationInput {
   adminUserId: string;
   decision: "APPROVED" | "REJECTED";
   adminNotes?: string;
+  businessId?: string;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface ReviewCancellationInput {
  * For shipped or delivered orders: strictly rejects cancellation.
  */
 export async function requestOrderCancellation(input: RequestCancellationInput) {
-  const { orderId, userId, requestedBy, reason } = input;
+  const { orderId, userId, requestedBy, reason, businessId } = input;
 
   return await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
@@ -36,6 +38,10 @@ export async function requestOrderCancellation(input: RequestCancellationInput) 
 
     if (!order) {
       throw new Error(`Order not found with ID: ${orderId}`);
+    }
+
+    if (businessId && order.businessId !== businessId) {
+      throw new Error("Access denied: Order does not belong to the active business.");
     }
 
     // Customer ownership verification if invoked by a customer
@@ -117,7 +123,7 @@ export async function requestOrderCancellation(input: RequestCancellationInput) 
  * Store administrator reviews a cancellation request for a paid order.
  */
 export async function reviewOrderCancellation(input: ReviewCancellationInput) {
-  const { orderId, decision, adminNotes } = input;
+  const { orderId, decision, adminNotes, businessId } = input;
 
   return await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
@@ -129,6 +135,10 @@ export async function reviewOrderCancellation(input: ReviewCancellationInput) {
 
     if (!order) {
       throw new Error(`Order not found with ID: ${orderId}`);
+    }
+
+    if (businessId && order.businessId !== businessId) {
+      throw new Error("Access denied: Order does not belong to the active business.");
     }
 
     if (order.status === "CANCELLED") {
@@ -176,6 +186,7 @@ export async function reviewOrderCancellation(input: ReviewCancellationInput) {
 
         await tx.inventoryMovement.create({
           data: {
+            businessId: order.businessId,
             variantId: variant.id,
             quantityChange: item.quantity,
             previousStock,

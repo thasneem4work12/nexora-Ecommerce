@@ -3,14 +3,17 @@
 import React from "react";
 import Link from "next/link";
 import { ShieldCheck, Truck, RefreshCw } from "lucide-react";
+import { useStoreTenant } from "@/context/StoreTenantContext";
 import type { StoreAppearanceConfig } from "@/types/theme";
 
 interface FooterProps {
   appearance?: StoreAppearanceConfig | null;
 }
 
-export function Footer({ appearance }: FooterProps) {
-  const storeName = appearance?.storeName || "NEXORA";
+export function Footer({ appearance: propAppearance }: FooterProps) {
+  const { business, appearance: tenantAppearance, basePath } = useStoreTenant();
+  const appearance = (basePath ? tenantAppearance : null) || propAppearance || tenantAppearance;
+  const storeName = appearance?.storeName || business?.name || "NEXORA";
   const storeTagline = appearance?.storeTagline || "Haute Couture";
   const showGuarantees = appearance?.footer?.showGuarantees ?? true;
   const copyrightText =
@@ -26,6 +29,7 @@ export function Footer({ appearance }: FooterProps) {
     { platform: "pinterest", url: "https://pinterest.com" },
     { platform: "linkedin", url: "https://linkedin.com" },
   ];
+  const catalogHref = `${basePath}/products`;
 
   return (
     <footer className="bg-canvas-secondary border-t border-border-default pt-16 pb-12 text-charcoal-700">
@@ -104,22 +108,22 @@ export function Footer({ appearance }: FooterProps) {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link href="/products?category=apparel" className="hover:text-bronze transition-colors">
+                <Link href={`${catalogHref}?category=apparel`} className="hover:text-bronze transition-colors">
                   Tailored Apparel
                 </Link>
               </li>
               <li>
-                <Link href="/products?category=footwear" className="hover:text-bronze transition-colors">
+                <Link href={`${catalogHref}?category=footwear`} className="hover:text-bronze transition-colors">
                   Hand-Welted Footwear
                 </Link>
               </li>
               <li>
-                <Link href="/products?category=accessories" className="hover:text-bronze transition-colors">
+                <Link href={`${catalogHref}?category=accessories`} className="hover:text-bronze transition-colors">
                   Fine Leather & Accoutrements
                 </Link>
               </li>
               <li>
-                <Link href="/products" className="hover:text-bronze transition-colors">
+                <Link href={catalogHref} className="hover:text-bronze transition-colors">
                   Seasonal Lookbook
                 </Link>
               </li>

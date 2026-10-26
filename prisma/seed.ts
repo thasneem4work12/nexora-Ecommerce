@@ -478,10 +478,29 @@ const PRODUCTS: SeedProduct[] = [
 async function seed() {
   console.log("Starting NEXORA database seeding...");
 
+  // 0. Ensure default business exists
+  await prisma.business.upsert({
+    where: { id: "default-store" },
+    update: {},
+    create: {
+      id: "default-store",
+      slug: "nexora",
+      name: "NEXORA Haute Couture",
+      type: "LUXURY_FASHION",
+      status: "ACTIVE",
+      currency: "USD",
+    },
+  });
+
   // 1. Seed Categories (idempotent upsert)
   for (const cat of CATEGORIES) {
     await prisma.category.upsert({
-      where: { slug: cat.slug },
+      where: {
+        businessId_slug: {
+          businessId: "default-store",
+          slug: cat.slug,
+        },
+      },
       update: {
         name: cat.name,
         description: cat.description,
@@ -489,6 +508,7 @@ async function seed() {
       },
       create: {
         id: cat.id,
+        businessId: "default-store",
         name: cat.name,
         slug: cat.slug,
         description: cat.description,
@@ -501,11 +521,21 @@ async function seed() {
   // 2. Seed Products, Images, and Variants (idempotent upsert)
   for (const prod of PRODUCTS) {
     const category = await prisma.category.findUnique({
-      where: { slug: prod.categorySlug },
+      where: {
+        businessId_slug: {
+          businessId: "default-store",
+          slug: prod.categorySlug,
+        },
+      },
     });
 
     const product = await prisma.product.upsert({
-      where: { slug: prod.slug },
+      where: {
+        businessId_slug: {
+          businessId: "default-store",
+          slug: prod.slug,
+        },
+      },
       update: {
         title: prod.title,
         description: prod.description,
@@ -517,6 +547,7 @@ async function seed() {
       },
       create: {
         id: prod.id,
+        businessId: "default-store",
         title: prod.title,
         slug: prod.slug,
         description: prod.description,

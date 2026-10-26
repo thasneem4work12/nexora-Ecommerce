@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import type { Prisma } from "@prisma/client";
 import type {
   ProductItem,
@@ -43,6 +44,7 @@ export function toProductItem(dbProduct: DbProductWithRelations): ProductItem {
 
   return {
     id: dbProduct.id,
+    businessId: dbProduct.businessId,
     title: dbProduct.title,
     slug: dbProduct.slug,
     description: dbProduct.description,
@@ -66,8 +68,10 @@ export async function getPublishedProducts(
   const page = Math.max(1, filter.page ?? 1);
   const limit = Math.min(100, Math.max(1, filter.limit ?? 12));
   const skip = (page - 1) * limit;
+  const businessId = filter.businessId || DEFAULT_BUSINESS_ID;
 
   const where: Prisma.ProductWhereInput = {
+    businessId,
     isArchived: false,
   };
 
@@ -146,15 +150,17 @@ export async function getPublishedProducts(
 }
 
 /**
- * Retrieves a single product by its unique SEO slug.
+ * Retrieves a single product by its unique SEO slug and businessId.
  */
 export async function getProductBySlug(
   slug: string,
-  options: { includeUnpublished?: boolean } = {}
+  options: { includeUnpublished?: boolean; businessId?: string } | string = {}
 ): Promise<ProductItem | null> {
-  const where: Prisma.ProductWhereInput = { slug, isArchived: false };
+  const opts = typeof options === "string" ? { businessId: options } : options;
+  const businessId = opts.businessId || DEFAULT_BUSINESS_ID;
+  const where: Prisma.ProductWhereInput = { businessId, slug, isArchived: false };
 
-  if (!options.includeUnpublished) {
+  if (!opts.includeUnpublished) {
     where.published = true;
   }
 
@@ -179,13 +185,17 @@ export async function getProductBySlug(
 /**
  * Retrieves all categories available in the store.
  */
-export async function getCategories(): Promise<CategoryItem[]> {
+export async function getCategories(
+  businessId: string = DEFAULT_BUSINESS_ID
+): Promise<CategoryItem[]> {
   const categories = await prisma.category.findMany({
+    where: { businessId },
     orderBy: { name: "asc" },
   });
 
   return categories.map((c) => ({
     id: c.id,
+    businessId: c.businessId,
     name: c.name,
     slug: c.slug,
     description: c.description,
@@ -199,10 +209,12 @@ export async function getCategories(): Promise<CategoryItem[]> {
 export async function getRelatedProducts(
   productId: string,
   category: string,
-  limit: number = 3
+  limit: number = 3,
+  businessId: string = DEFAULT_BUSINESS_ID
 ): Promise<ProductItem[]> {
   const products = await prisma.product.findMany({
     where: {
+      businessId,
       published: true,
       isArchived: false,
       id: { not: productId },

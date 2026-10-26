@@ -12,7 +12,7 @@ export default defineConfig({
   },
   reporter: "html",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3005",
     trace: "on-first-retry",
     actionTimeout: 15000,
     navigationTimeout: 30000,
@@ -24,8 +24,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
+    command: "npx next dev -p 3005",
+    url: "http://localhost:3005",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

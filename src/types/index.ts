@@ -31,6 +31,7 @@ export interface CategoryItem {
   slug: string;
   description?: string | null;
   imageUrl?: string | null;
+  businessId?: string;
 }
 
 export type ProductSortOption =
@@ -42,6 +43,7 @@ export type ProductSortOption =
   | "newest";
 
 export interface GetProductsFilter {
+  businessId?: string;
   category?: string;
   search?: string;
   sort?: ProductSortOption;
@@ -65,6 +67,7 @@ export interface PaginatedProductsResult {
 
 export interface ProductItem {
   id: string;
+  businessId?: string;
   title: string;
   slug: string;
   description: string;
@@ -86,6 +89,7 @@ export interface CartLineItem {
   quantity: number;
   image: string;
   maxStock: number;
+  businessId?: string;
 }
 
 export interface CartSummary {

@@ -1,9 +1,10 @@
-import React from "react";
 import { getAdminCategories } from "@/services/admin-catalog.service";
 import { CategoryManager } from "@/components/admin/CategoryManager";
+import { requireAdminPageSession } from "@/lib/admin-auth";
 
 export default async function AdminCategoriesPage() {
-  const categories = await getAdminCategories();
+  const { businessId } = await requireAdminPageSession("VIEW_ADMIN");
+  const categories = await getAdminCategories(businessId);
 
   return (
     <div className="space-y-8">

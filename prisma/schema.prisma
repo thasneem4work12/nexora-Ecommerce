@@ -1,5 +1,5 @@
 // NEXORA Commerce — PostgreSQL Database Schema
-// Phase 1: Authentication & Foundational Core Models
+// Phase 7: Multi-Tenant SaaS Architecture, Business Onboarding & Store Isolation
 
 generator client {
   provider = "prisma-client-js"
@@ -18,6 +18,133 @@ enum Role {
   SUPERADMIN
 }
 
+enum BusinessRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum BusinessStatus {
+  ACTIVE
+  SUSPENDED
+  ONBOARDING
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model Business {
+  id           String         @id @default(cuid())
+  slug         String         @unique
+  name         String
+  type         String         @default("LUXURY_FASHION")
+  status       BusinessStatus @default(ACTIVE)
+  currency     String         @default("USD")
+  contactEmail String?
+  contactPhone String?
+  description  String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  members            BusinessMember[]
+  settings           BusinessSettings?
+  themeConfig        StoreThemeConfig?
+  invitations        BusinessInvitation[]
+  auditLogs          BusinessAuditLog[]
+  categories         Category[]
+  products           Product[]
+  orders             Order[]
+  carts              Cart[]
+  inventoryMovements InventoryMovement[]
+  stockReservations  StockReservation[]
+  payments           Payment[]
+  returnRequests     ReturnRequest[]
+  supportTickets     SupportTicket[]
+  notifications      Notification[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("businesses")
+}
+
+model BusinessMember {
+  id         String       @id @default(cuid())
+  businessId String
+  userId     String
+  role       BusinessRole @default(STAFF)
+  title      String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  business   Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+  @@index([businessId])
+  @@index([userId])
+  @@map("business_members")
+}
+
+model BusinessSettings {
+  id                    String   @id @default(cuid())
+  businessId            String   @unique
+  payhereMerchantId     String?
+  payhereMerchantSecret String?
+  allowMockPayment      Boolean  @default(true)
+  inventoryTracking     Boolean  @default(true)
+  orderPrefix           String   @default("NXR")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("business_settings")
+}
+
+model BusinessInvitation {
+  id          String           @id @default(cuid())
+  businessId  String
+  email       String
+  role        BusinessRole     @default(STAFF)
+  token       String           @unique
+  invitedById String
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invitedBy   User             @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([email])
+  @@index([token])
+  @@map("business_invitations")
+}
+
+model BusinessAuditLog {
+  id         String   @id @default(cuid())
+  businessId String
+  userId     String?
+  action     String
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([action])
+  @@map("business_audit_logs")
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -34,12 +161,15 @@ model User {
   inventoryMovements InventoryMovement[]
   orders             Order[]
   addresses          Address[]
-  returnRequests     ReturnRequest[]     @relation("UserReturns")
-  reviewedReturns    ReturnRequest[]     @relation("ReviewedReturns")
-  supportTickets     SupportTicket[]     @relation("UserTickets")
-  assignedTickets    SupportTicket[]     @relation("AssignedTickets")
+  returnRequests     ReturnRequest[]      @relation("UserReturns")
+  reviewedReturns    ReturnRequest[]      @relation("ReviewedReturns")
+  supportTickets     SupportTicket[]      @relation("UserTickets")
+  assignedTickets    SupportTicket[]      @relation("AssignedTickets")
   ticketMessages     TicketMessage[]
   notifications      Notification[]
+  businessMembers    BusinessMember[]
+  sentInvitations    BusinessInvitation[] @relation("SentInvitations")
+  businessAuditLogs  BusinessAuditLog[]
 
   @@map("users")
 }
@@ -91,23 +221,29 @@ model Verification {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?   @db.Text
+  id          String   @id @default(cuid())
+  businessId  String   @default("default-store")
+  name        String
+  slug        String
+  description String?  @db.Text
   imageUrl    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   products    Product[]
 
+  @@unique([businessId, slug])
+  @@unique([businessId, name])
+  @@index([businessId])
   @@map("categories")
 }
 
 model Product {
   id               String           @id @default(cuid())
+  businessId       String           @default("default-store")
   title            String
-  slug             String           @unique
+  slug             String
   description      String           @db.Text
   category         String
   categoryId       String?
@@ -120,16 +256,20 @@ model Product {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
+  business         Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   variants         ProductVariant[]
   images           ProductImage[]
   orderItems       OrderItem[]
 
+  @@unique([businessId, slug])
+  @@index([businessId])
   @@index([category])
   @@index([categoryId])
   @@index([published])
   @@index([featured])
   @@index([isArchived])
-  @@index([isArchived, published])
+  @@index([businessId, published])
+  @@index([businessId, isArchived])
   @@index([published, featured])
   @@index([published, category])
   @@index([basePriceInCents])
@@ -179,14 +319,19 @@ model ProductImage {
 
 model Cart {
   id           String     @id @default(cuid())
+  businessId   String     @default("default-store")
   userId       String?
-  sessionToken String?    @unique
+  sessionToken String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   items        CartItem[]
 
+  @@unique([businessId, sessionToken])
+  @@index([businessId])
+  @@index([userId])
   @@map("carts")
 }
 
@@ -213,23 +358,28 @@ enum InventoryMovementType {
   MANUAL_CORRECTION
   RESERVATION
   RELEASE
+  CANCELLATION
 }
 
 model InventoryMovement {
-  id             String                 @id @default(cuid())
+  id             String                @id @default(cuid())
+  businessId     String                @default("default-store")
   variantId      String
   quantityChange Int
   previousStock  Int
   newStock       Int
-  type           InventoryMovementType  @default(MANUAL_CORRECTION)
-  reason         String?                @db.Text
+  type           InventoryMovementType @default(MANUAL_CORRECTION)
+  reason         String?               @db.Text
   reference      String?
   userId         String?
-  createdAt      DateTime               @default(now())
+  createdAt      DateTime              @default(now())
 
-  variant        ProductVariant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
-  user           User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  business       Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  variant        ProductVariant        @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  user           User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([businessId])
+  @@index([businessId, createdAt])
   @@index([variantId])
   @@index([userId])
   @@index([type])
@@ -360,6 +510,7 @@ model Address {
 
 model Order {
   id                      String             @id @default(cuid())
+  businessId              String             @default("default-store")
   orderNumber             String             @unique
   userId                  String?
   guestEmail              String?
@@ -382,7 +533,7 @@ model Order {
   cancellationRequested   Boolean            @default(false)
   cancellationReason      String?
   cancellationRequestedAt DateTime?
-  cancellationRequestedBy String?            // "CUSTOMER" | "STAFF"
+  cancellationRequestedBy String?
   refundRequired          Boolean            @default(false)
   refundAmountInCents     Int?
   refundReason            String?
@@ -391,6 +542,7 @@ model Order {
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
 
+  business                Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user                    User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   shippingAddress         Address?           @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id], onDelete: SetNull)
   billingAddress          Address?           @relation("OrderBillingAddress", fields: [billingAddressId], references: [id], onDelete: SetNull)
@@ -402,6 +554,9 @@ model Order {
   supportTickets          SupportTicket[]
   notifications           Notification[]
 
+  @@index([businessId])
+  @@index([businessId, status])
+  @@index([businessId, createdAt])
   @@index([userId])
   @@index([status])
   @@index([fulfillmentStatus])
@@ -439,23 +594,26 @@ model OrderItem {
 
 model Payment {
   id                String         @id @default(cuid())
+  businessId        String         @default("default-store")
   orderId           String
-  provider          String         // "MOCK", "PAYHERE", "STRIPE", etc.
+  provider          String
   providerPaymentId String?
   status            PaymentStatus  @default(PENDING)
   amountInCents     Int
   currency          String         @default("USD")
-  paymentMethod     String?        // "CREDIT_CARD", "DEBIT_CARD", "BANK_TRANSFER"
-  cardBrand         String?        // e.g. "Visa", "Mastercard" (NEVER store full card numbers)
-  cardLast4         String?        // e.g. "4242"
+  paymentMethod     String?
+  cardBrand         String?
+  cardLast4         String?
   errorMessage      String?
   paidAt            DateTime?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
+  business          Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   events            PaymentEvent[]
 
+  @@index([businessId])
   @@index([orderId])
   @@index([providerPaymentId])
   @@index([status])
@@ -463,19 +621,21 @@ model Payment {
 }
 
 model PaymentEvent {
-  id        String   @id @default(cuid())
-  paymentId String?
-  orderId   String?
-  provider  String
-  eventType String
-  eventId   String?  @unique // Idempotency key for provider webhook deduplication
-  payload   String   @db.Text
-  status    String   @default("PROCESSED")
-  error     String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  businessId String?
+  paymentId  String?
+  orderId    String?
+  provider   String
+  eventType  String
+  eventId    String?  @unique
+  payload    String   @db.Text
+  status     String   @default("PROCESSED")
+  error      String?
+  createdAt  DateTime @default(now())
 
-  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  payment    Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
+  @@index([businessId])
   @@index([orderId])
   @@index([eventId])
   @@index([provider])
@@ -484,6 +644,7 @@ model PaymentEvent {
 
 model StockReservation {
   id          String                 @id @default(cuid())
+  businessId  String                 @default("default-store")
   orderId     String
   variantId   String
   quantity    Int
@@ -494,9 +655,12 @@ model StockReservation {
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
 
+  business    Business               @relation(fields: [businessId], references: [id], onDelete: Cascade)
   order       Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variant     ProductVariant         @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
+  @@index([businessId])
+  @@index([businessId, status, expiresAt])
   @@index([orderId])
   @@index([variantId])
   @@index([status])
@@ -508,8 +672,8 @@ model Shipment {
   id                String         @id @default(cuid())
   orderId           String
   trackingNumber    String?
-  carrier           String?        // e.g. "DHL Express", "FedEx", "Boutique Courier"
-  trackingUrl       String?        // Secure validated tracking link
+  carrier           String?
+  trackingUrl       String?
   status            ShipmentStatus @default(PENDING)
   shippedAt         DateTime?
   dispatchedAt      DateTime?
@@ -529,6 +693,7 @@ model Shipment {
 
 model ReturnRequest {
   id                  String       @id @default(cuid())
+  businessId          String       @default("default-store")
   returnNumber        String       @unique
   orderId             String
   orderItemId         String?
@@ -545,11 +710,14 @@ model ReturnRequest {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
+  business            Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   order               Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderItem           OrderItem?   @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
   user                User         @relation("UserReturns", fields: [userId], references: [id], onDelete: Cascade)
   reviewedByUser      User?        @relation("ReviewedReturns", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
+  @@index([businessId])
+  @@index([businessId, status])
   @@index([orderId])
   @@index([userId])
   @@index([status])
@@ -560,6 +728,7 @@ model ReturnRequest {
 
 model SupportTicket {
   id              String         @id @default(cuid())
+  businessId      String         @default("default-store")
   ticketNumber    String         @unique
   userId          String
   orderId         String?
@@ -571,11 +740,14 @@ model SupportTicket {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user            User           @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
   order           Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
   assignedStaff   User?          @relation("AssignedTickets", fields: [assignedStaffId], references: [id], onDelete: SetNull)
   messages        TicketMessage[]
 
+  @@index([businessId])
+  @@index([businessId, status])
   @@index([userId])
   @@index([orderId])
   @@index([status])
@@ -603,6 +775,7 @@ model TicketMessage {
 
 model Notification {
   id             String           @id @default(cuid())
+  businessId     String?
   userId         String
   orderId        String?
   ticketId       String?
@@ -618,9 +791,11 @@ model Notification {
   deliveredAt    DateTime?
   createdAt      DateTime         @default(now())
 
+  business       Business?        @relation(fields: [businessId], references: [id], onDelete: Cascade)
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   order          Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  @@index([businessId])
   @@index([userId])
   @@index([orderId])
   @@index([type])
@@ -652,10 +827,9 @@ model StoreThemeConfig {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  business            Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
   @@index([businessId])
   @@index([activeThemeId])
   @@map("store_theme_configs")
 }
-
-
-

@@ -25,6 +25,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+import { StoreTenantProvider } from "@/context/StoreTenantContext";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -60,12 +62,22 @@ export default async function RootLayout({
         </head>
       )}
       <body className="flex flex-col min-h-screen bg-canvas-primary text-charcoal-900 selection:bg-bronze/20 selection:text-bronze-dark">
-        <CartProvider>
-          <Header appearance={appearance} />
-          <main className="flex-1">{children}</main>
-          <Footer appearance={appearance} />
-          <CartDrawer />
-        </CartProvider>
+        <StoreTenantProvider
+          initialBusiness={{
+            id: "default-store",
+            slug: "nexora",
+            name: appearance.storeName,
+          }}
+          initialAppearance={appearance}
+          initialBasePath=""
+        >
+          <CartProvider>
+            <Header appearance={appearance} />
+            <main className="flex-1">{children}</main>
+            <Footer appearance={appearance} />
+            <CartDrawer />
+          </CartProvider>
+        </StoreTenantProvider>
       </body>
     </html>
   );

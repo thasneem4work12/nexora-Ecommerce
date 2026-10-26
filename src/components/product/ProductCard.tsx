@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { ProductItem } from "@/types";
 import { formatPrice } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
+import { useStoreTenant } from "@/context/StoreTenantContext";
 import { Plus } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 
@@ -15,6 +16,8 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const { basePath } = useStoreTenant();
+  const productHref = `${basePath}/products/${product.slug}`;
   const primaryImage = product.images[0] || "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=800";
   const firstVariant = product.variants[0];
 
@@ -32,6 +35,7 @@ export function ProductCard({ product }: ProductCardProps) {
       quantity: 1,
       image: primaryImage,
       maxStock: firstVariant.stock,
+      businessId: (product as unknown as { businessId?: string }).businessId,
     });
   };
 
@@ -39,7 +43,7 @@ export function ProductCard({ product }: ProductCardProps) {
     <article className="group relative flex flex-col bg-canvas-surface rounded-card border border-border-subtle hover:border-border-strong transition-all duration-300 overflow-hidden">
       {/* Product Image Container */}
       <Link
-        href={`/products/${product.slug}`}
+        href={productHref}
         className="relative aspect-[3/4] w-full overflow-hidden bg-canvas-secondary"
       >
         <Image
@@ -84,7 +88,7 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.category}
           </span>
           <h3 className="text-sm sm:text-base font-serif text-charcoal-900 group-hover:text-bronze transition-colors mt-1 line-clamp-1">
-            <Link href={`/products/${product.slug}`}>
+            <Link href={productHref}>
               {product.title}
             </Link>
           </h3>

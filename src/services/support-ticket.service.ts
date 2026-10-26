@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import type { TicketStatus, TicketPriority, Role, Prisma } from "@prisma/client";
 import { notifySupportTicketReply } from "./notification.service";
 
@@ -8,6 +9,7 @@ export interface CreateTicketInput {
   subject: string;
   description: string;
   priority?: TicketPriority;
+  businessId?: string;
 }
 
 export interface AddTicketMessageInput {
@@ -16,6 +18,7 @@ export interface AddTicketMessageInput {
   senderRole: Role;
   message: string;
   isInternalNote?: boolean;
+  businessId?: string;
 }
 
 export interface UpdateTicketStatusInput {
@@ -24,27 +27,31 @@ export interface UpdateTicketStatusInput {
   status?: TicketStatus;
   priority?: TicketPriority;
   assignedStaffId?: string | null;
+  businessId?: string;
 }
 
 /**
  * Creates a new support ticket for a customer, optionally linked to an order.
  */
 export async function createSupportTicket(input: CreateTicketInput) {
-  const { userId, orderId, subject, description, priority = "NORMAL" } = input;
+  const { userId, orderId, subject, description, priority = "NORMAL", businessId } = input;
 
   if (!subject.trim() || !description.trim()) {
     throw new Error("Subject and description are required.");
   }
 
-  // If orderId is provided, verify it belongs to the customer
+  let resolvedBusinessId = businessId || DEFAULT_BUSINESS_ID;
+
+  // If orderId is provided, verify it belongs to the customer and get its businessId
   if (orderId) {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { userId: true },
+      select: { userId: true, businessId: true },
     });
     if (!order || order.userId !== userId) {
       throw new Error("Specified order does not exist or does not belong to your account.");
     }
+    resolvedBusinessId = order.businessId;
   }
 
   const ticketNumber = `TCK-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
@@ -52,6 +59,7 @@ export async function createSupportTicket(input: CreateTicketInput) {
   return await prisma.$transaction(async (tx) => {
     const ticket = await tx.supportTicket.create({
       data: {
+        businessId: resolvedBusinessId,
         ticketNumber,
         userId,
         orderId: orderId || null,
@@ -83,7 +91,7 @@ export async function createSupportTicket(input: CreateTicketInput) {
  * Handles internal staff-only notes.
  */
 export async function addTicketMessage(input: AddTicketMessageInput) {
-  const { ticketId, senderId, senderRole, message, isInternalNote = false } = input;
+  const { ticketId, senderId, senderRole, message, isInternalNote = false, businessId } = input;
 
   if (!message.trim()) {
     throw new Error("Message content cannot be empty.");
@@ -99,6 +107,10 @@ export async function addTicketMessage(input: AddTicketMessageInput) {
 
     if (!ticket) {
       throw new Error(`Support ticket not found: ${ticketId}`);
+    }
+
+    if (businessId && ticket.businessId !== businessId) {
+      throw new Error("Access denied: Support ticket does not belong to the active business.");
     }
 
     // Customer security guard
@@ -156,11 +168,15 @@ export async function addTicketMessage(input: AddTicketMessageInput) {
  * Updates support ticket administrative attributes (status, priority, assigned staff).
  */
 export async function updateTicketAttributes(input: UpdateTicketStatusInput) {
-  const { ticketId, status, priority, assignedStaffId } = input;
+  const { ticketId, status, priority, assignedStaffId, businessId } = input;
 
   const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
   if (!ticket) {
     throw new Error(`Support ticket not found: ${ticketId}`);
+  }
+
+  if (businessId && ticket.businessId !== businessId) {
+    throw new Error("Access denied: Support ticket does not belong to the active business.");
   }
 
   return await prisma.supportTicket.update({
@@ -177,7 +193,21 @@ export async function updateTicketAttributes(input: UpdateTicketStatusInput) {
  * Retrieves a single support ticket by ID with message history.
  * Masks internal notes if the requesting user is a customer.
  */
-export async function getSupportTicketById(ticketId: string, requestingUserId: string, requestingRole: Role) {
+export async function getSupportTicketById(
+  ticketId: string,
+  requestingUserIdOrBusinessId?: string,
+  requestingRole?: Role,
+  businessIdArg?: string
+) {
+  let requestingUserId = requestingUserIdOrBusinessId;
+  let businessId = businessIdArg;
+
+  // Support direct tenant lookup overload: getSupportTicketById(ticketId, businessId)
+  if (!businessId && requestingRole === undefined && requestingUserIdOrBusinessId) {
+    businessId = requestingUserIdOrBusinessId;
+    requestingUserId = undefined;
+  }
+
   const ticket = await prisma.supportTicket.findUnique({
     where: { id: ticketId },
     include: {
@@ -194,6 +224,10 @@ export async function getSupportTicketById(ticketId: string, requestingUserId: s
   });
 
   if (!ticket) {
+    return null;
+  }
+
+  if (businessId && ticket.businessId !== businessId) {
     return null;
   }
 
@@ -216,13 +250,18 @@ export async function getSupportTicketById(ticketId: string, requestingUserId: s
 /**
  * Lists tickets with filtering and pagination.
  */
-export async function getCustomerTickets(userId: string, page = 1, limit = 10) {
+export async function getCustomerTickets(userId: string, page = 1, limit = 10, businessId?: string) {
   const skip = (Math.max(1, page) - 1) * limit;
 
+  const where = {
+    userId,
+    ...(businessId ? { businessId } : {}),
+  };
+
   const [total, tickets] = await prisma.$transaction([
-    prisma.supportTicket.count({ where: { userId } }),
+    prisma.supportTicket.count({ where }),
     prisma.supportTicket.findMany({
-      where: { userId },
+      where,
       skip,
       take: limit,
       orderBy: { updatedAt: "desc" },
@@ -254,12 +293,14 @@ export async function getAdminTickets(params: {
   search?: string;
   page?: number;
   limit?: number;
+  businessId?: string;
 }) {
   const page = Math.max(1, params.page || 1);
   const limit = Math.max(1, Math.min(50, params.limit || 10));
   const skip = (page - 1) * limit;
 
   const where: Prisma.SupportTicketWhereInput = {};
+  if (params.businessId) where.businessId = params.businessId;
   if (params.status) where.status = params.status;
   if (params.priority) where.priority = params.priority;
   if (params.assignedStaffId) where.assignedStaffId = params.assignedStaffId;

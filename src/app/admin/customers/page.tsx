@@ -19,7 +19,7 @@ export default async function AdminCustomersPage({
     page?: string;
   }>;
 }) {
-  await requireAdminPageSession("VIEW_CUSTOMERS");
+  const { businessId } = await requireAdminPageSession("VIEW_CUSTOMERS");
   const params = await searchParams;
 
   const page = params.page ? parseInt(params.page, 10) : 1;
@@ -27,6 +27,7 @@ export default async function AdminCustomersPage({
   const sortBy = params.sortBy || "newest";
 
   const { customers, pagination } = await getAdminCustomers({
+    businessId,
     search,
     sortBy,
     page: isNaN(page) ? 1 : page,

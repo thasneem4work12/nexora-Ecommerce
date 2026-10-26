@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
 import type { Prisma } from "@prisma/client";
 
 export const DEFAULT_RESERVATION_DURATION_MINUTES = 20;
@@ -62,6 +63,7 @@ export async function createStockReservations(
       // 2. Audit inventory movement with type RESERVATION
       await tx.inventoryMovement.create({
         data: {
+          businessId: variant.product.businessId || DEFAULT_BUSINESS_ID,
           variantId: variant.id,
           quantityChange: -item.quantity,
           previousStock,
@@ -75,6 +77,7 @@ export async function createStockReservations(
       // 3. Create StockReservation record
       const reservation = await tx.stockReservation.create({
         data: {
+          businessId: variant.product.businessId || DEFAULT_BUSINESS_ID,
           orderId,
           variantId: variant.id,
           quantity: item.quantity,
@@ -202,6 +205,7 @@ export async function releaseReservations(
       // 2. Audit ledger entry with type RELEASE
       await tx.inventoryMovement.create({
         data: {
+          businessId: res.businessId || res.variant.product.businessId || DEFAULT_BUSINESS_ID,
           variantId: variant.id,
           quantityChange: res.quantity,
           previousStock,
@@ -229,7 +233,7 @@ export async function releaseReservations(
  * Designed to run on system bootstrap, before inventory queries, or on schedule.
  * Returns the number of recovered reservations and affected orders.
  */
-export async function releaseExpiredReservations(): Promise<{
+export async function releaseExpiredReservations(businessId?: string): Promise<{
   expiredCount: number;
   ordersCancelled: number;
 }> {
@@ -238,12 +242,15 @@ export async function releaseExpiredReservations(): Promise<{
   // Find all PENDING reservations past their expiration timestamp
   const expiredReservations = await prisma.stockReservation.findMany({
     where: {
+      ...(businessId ? { businessId } : {}),
       status: "PENDING",
       expiresAt: { lt: now },
     },
     include: {
       order: true,
-      variant: true,
+      variant: {
+        include: { product: true },
+      },
     },
   });
 
@@ -295,6 +302,7 @@ export async function releaseExpiredReservations(): Promise<{
         // Audit movement
         await tx.inventoryMovement.create({
           data: {
+            businessId: res.businessId || res.variant.product.businessId || DEFAULT_BUSINESS_ID,
             variantId: variant.id,
             quantityChange: res.quantity,
             previousStock,

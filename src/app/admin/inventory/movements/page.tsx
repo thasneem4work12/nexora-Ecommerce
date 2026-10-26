@@ -4,6 +4,8 @@ import { getInventoryMovements } from "@/services/inventory.service";
 import { ArrowLeft, TrendingUp, TrendingDown, History } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
+import { requireAdminPageSession } from "@/lib/admin-auth";
+
 interface MovementsPageProps {
   searchParams: Promise<{
     variantId?: string;
@@ -14,11 +16,13 @@ interface MovementsPageProps {
 export default async function AdminInventoryMovementsPage({
   searchParams,
 }: MovementsPageProps) {
+  const { businessId } = await requireAdminPageSession("VIEW_ADMIN");
   const resolvedParams = await searchParams;
   const variantId = resolvedParams.variantId || undefined;
   const page = resolvedParams.page ? parseInt(resolvedParams.page, 10) : 1;
 
   const { movements, pagination } = await getInventoryMovements({
+    businessId,
     variantId,
     page: isNaN(page) ? 1 : page,
     limit: 25,

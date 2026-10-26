@@ -14,6 +14,8 @@ import {
   LifeBuoy,
   Palette,
   Settings,
+  Building2,
+  UserCheck,
   ExternalLink,
   LogOut,
   Menu,
@@ -22,6 +24,7 @@ import {
 import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import type { Role } from "@prisma/client";
+import { BusinessSwitcher } from "./BusinessSwitcher";
 
 interface AdminSidebarProps {
   user: {
@@ -84,6 +87,16 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       icon: Palette,
     },
     {
+      href: "/admin/businesses",
+      label: "Stores & Businesses",
+      icon: Building2,
+    },
+    {
+      href: "/admin/members",
+      label: "Team & Permissions",
+      icon: UserCheck,
+    },
+    {
       href: "/admin/settings",
       label: "Store Settings",
       icon: Settings,
@@ -109,6 +122,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
             </span>
           </Link>
         </div>
+
+        {/* Multi-Tenant Business Switcher */}
+        <BusinessSwitcher />
 
         {/* Navigation Items */}
         <nav className="p-4 space-y-1.5">

@@ -12,7 +12,7 @@ describe("Payment & Checkout Security Engine (Idempotency, Mismatches & Concurre
 
   beforeAll(async () => {
     // 1. Retrieve existing apparel category
-    const category = (await prisma.category.findUnique({
+    const category = (await prisma.category.findFirst({
       where: { slug: "apparel" },
     })) || (await prisma.category.findFirst());
 

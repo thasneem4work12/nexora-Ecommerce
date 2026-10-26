@@ -281,6 +281,7 @@ export const storeAppearanceConfigSchema = z.object({
   homepageSections: z.array(homepageSectionSchema),
   hasUnpublishedDraft: z.boolean().default(false),
   hasDraft: z.boolean().default(false),
+  isPreview: z.boolean().default(false).optional(),
   publishedAt: z.union([z.string(), z.date()]).optional(),
 });
 

@@ -6,11 +6,11 @@ import { ZodError } from "zod";
 
 export async function POST(req: NextRequest) {
   try {
-    const { user } = await requireAdminApi("MANAGE_APPEARANCE");
+    const { user, businessId } = await requireAdminApi(req, "MANAGE_APPEARANCE");
     const body = await req.json();
 
     const validated = saveDraftInputSchema.parse(body);
-    const result = await saveDraftAppearance(validated);
+    const result = await saveDraftAppearance(validated, businessId);
 
     return NextResponse.json({
       success: true,

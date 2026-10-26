@@ -6,6 +6,8 @@ import { Search, X, SlidersHorizontal } from "lucide-react";
 import type { CategoryItem, ProductSortOption } from "@/types";
 import { cn } from "@/lib/utils";
 
+import { useStoreTenant } from "@/context/StoreTenantContext";
+
 interface CatalogToolbarProps {
   categories: CategoryItem[];
   currentCategory: string;
@@ -23,6 +25,7 @@ export function CatalogToolbar({
 }: CatalogToolbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { basePath } = useStoreTenant();
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(currentSearch);
 
@@ -66,7 +69,8 @@ export function CatalogToolbar({
 
     startTransition(() => {
       const queryString = params.toString();
-      router.push(`/products${queryString ? `?${queryString}` : ""}`);
+      const targetBase = basePath || "";
+      router.push(`${targetBase}/products${queryString ? `?${queryString}` : ""}`);
     });
   };
 

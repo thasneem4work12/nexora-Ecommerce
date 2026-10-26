@@ -12,6 +12,7 @@ import { updateOrderShipment as updateShipmentService } from "./shipment.service
 import { notifyCancellationDecision } from "./notification.service";
 
 export interface AdminOrderFilter {
+  businessId?: string;
   search?: string;
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
@@ -32,6 +33,10 @@ export async function getAdminOrders(filter: AdminOrderFilter = {}) {
   const skip = (page - 1) * limit;
 
   const where: Prisma.OrderWhereInput = {};
+
+  if (filter.businessId) {
+    where.businessId = filter.businessId;
+  }
 
   if (filter.status) {
     where.status = filter.status;
@@ -111,9 +116,13 @@ export async function getAdminOrders(filter: AdminOrderFilter = {}) {
 /**
  * Retrieves single order with complete audit trail, payments, events, reservations, shipments, and return requests.
  */
-export async function getAdminOrderById(orderId: string): Promise<OrderWithDetails | null> {
+export async function getAdminOrderById(
+  orderId: string,
+  businessId?: string
+): Promise<OrderWithDetails | null> {
+  const where: Prisma.OrderWhereUniqueInput = { id: orderId };
   const order = await prisma.order.findUnique({
-    where: { id: orderId },
+    where,
     include: {
       user: true,
       shippingAddress: true,
@@ -148,6 +157,14 @@ export async function getAdminOrderById(orderId: string): Promise<OrderWithDetai
     },
   });
 
+  if (!order) {
+    return null;
+  }
+
+  if (businessId && order.businessId !== businessId) {
+    return null;
+  }
+
   return order as OrderWithDetails | null;
 }
 
@@ -158,7 +175,8 @@ export async function getAdminOrderById(orderId: string): Promise<OrderWithDetai
 export async function updateAdminOrderStatus(
   orderId: string,
   newStatus: OrderStatus,
-  adminNotes?: string
+  adminNotes?: string,
+  businessId?: string
 ): Promise<OrderWithDetails> {
   return await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "orders" WHERE id = ${orderId} FOR UPDATE`;
@@ -170,6 +188,10 @@ export async function updateAdminOrderStatus(
 
     if (!order) {
       throw new Error(`Order not found: ${orderId}`);
+    }
+
+    if (businessId && order.businessId !== businessId) {
+      throw new Error("Access denied: Order does not belong to the active business.");
     }
 
     // Security Guard: Prevent invalid order and payment state transitions
@@ -274,7 +296,9 @@ export async function updateOrderShipment(
 /**
  * Computes high-level executive order and operational metrics from PostgreSQL.
  */
-export async function getAdminOrderMetrics() {
+export async function getAdminOrderMetrics(businessId?: string) {
+  const bWhere = businessId ? { businessId } : {};
+
   const [
     totalOrders,
     paidOrders,
@@ -286,29 +310,34 @@ export async function getAdminOrderMetrics() {
     revenueData,
   ] = await prisma.$transaction([
     // 1. Total orders placed
-    prisma.order.count(),
+    prisma.order.count({ where: bWhere }),
     // 2. Paid orders
-    prisma.order.count({ where: { paymentStatus: "PAID" } }),
+    prisma.order.count({ where: { ...bWhere, paymentStatus: "PAID" } }),
     // 3. Orders awaiting fulfillment (paid, but unfulfilled/processing/packed)
     prisma.order.count({
       where: {
+        ...bWhere,
         paymentStatus: "PAID",
         fulfillmentStatus: { in: ["UNFULFILLED", "PROCESSING", "PACKED"] },
       },
     }),
     // 4. Shipped orders currently in transit
-    prisma.order.count({ where: { fulfillmentStatus: "SHIPPED" } }),
+    prisma.order.count({ where: { ...bWhere, fulfillmentStatus: "SHIPPED" } }),
     // 5. Completed orders safely delivered
-    prisma.order.count({ where: { fulfillmentStatus: "DELIVERED" } }),
+    prisma.order.count({ where: { ...bWhere, fulfillmentStatus: "DELIVERED" } }),
     // 6. Open support tickets awaiting resolution
     prisma.supportTicket.count({
-      where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING_FOR_CUSTOMER"] } },
+      where: {
+        ...bWhere,
+        status: { in: ["OPEN", "IN_PROGRESS", "WAITING_FOR_CUSTOMER"] },
+      },
     }),
     // 7. Pending return requests awaiting inspection
-    prisma.returnRequest.count({ where: { status: "PENDING" } }),
+    prisma.returnRequest.count({ where: { ...bWhere, status: "PENDING" } }),
     // 8. Authoritative revenue from verified paid orders excluding cancellations
     prisma.order.aggregate({
       where: {
+        ...bWhere,
         paymentStatus: "PAID",
         status: { not: "CANCELLED" },
       },

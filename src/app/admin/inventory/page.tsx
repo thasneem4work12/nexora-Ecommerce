@@ -2,6 +2,8 @@ import React from "react";
 import { getInventoryItems } from "@/services/inventory.service";
 import { InventoryTable } from "@/components/admin/InventoryTable";
 
+import { requireAdminPageSession } from "@/lib/admin-auth";
+
 interface AdminInventoryPageProps {
   searchParams: Promise<{
     search?: string;
@@ -13,12 +15,14 @@ interface AdminInventoryPageProps {
 export default async function AdminInventoryPage({
   searchParams,
 }: AdminInventoryPageProps) {
+  const { businessId } = await requireAdminPageSession("VIEW_ADMIN");
   const resolvedParams = await searchParams;
   const search = resolvedParams.search || "";
   const lowStockOnly = resolvedParams.lowStockOnly === "true";
   const page = resolvedParams.page ? parseInt(resolvedParams.page, 10) : 1;
 
   const { items, pagination } = await getInventoryItems({
+    businessId,
     search,
     lowStockOnly,
     page: isNaN(page) ? 1 : page,

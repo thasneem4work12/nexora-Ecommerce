@@ -19,6 +19,7 @@ export interface ReviewReturnRequestInput {
   refundStatus?: RefundStatus;
   refundAmountInCents?: number;
   restockInventory?: boolean;
+  businessId?: string;
 }
 
 /**
@@ -94,6 +95,7 @@ export async function createReturnRequest(input: CreateReturnRequestInput) {
 
     const returnRequest = await tx.returnRequest.create({
       data: {
+        businessId: order.businessId,
         returnNumber,
         orderId: order.id,
         orderItemId: orderItemId || null,
@@ -131,6 +133,7 @@ export async function reviewReturnRequest(input: ReviewReturnRequestInput) {
     refundStatus,
     refundAmountInCents,
     restockInventory = true,
+    businessId,
   } = input;
 
   return await prisma.$transaction(async (tx) => {
@@ -150,6 +153,10 @@ export async function reviewReturnRequest(input: ReviewReturnRequestInput) {
       throw new Error(`Return request not found with ID: ${returnRequestId}`);
     }
 
+    if (businessId && returnRequest.businessId !== businessId && returnRequest.order.businessId !== businessId) {
+      throw new Error("Access denied: Return request does not belong to the active business.");
+    }
+
     // Restock inventory if completing return
     if (status === "COMPLETED" && returnRequest.status !== "COMPLETED" && restockInventory) {
       const variantId = returnRequest.orderItem?.variantId;
@@ -166,6 +173,7 @@ export async function reviewReturnRequest(input: ReviewReturnRequestInput) {
 
           await tx.inventoryMovement.create({
             data: {
+              businessId: returnRequest.businessId || returnRequest.order.businessId,
               variantId: variant.id,
               quantityChange: returnRequest.requestedQuantity,
               previousStock,
@@ -229,8 +237,9 @@ export async function recordManualRefund(params: {
   refundAmountInCents: number;
   reconciliationReference: string;
   notes?: string;
+  businessId?: string;
 }) {
-  const { orderId, adminUserId, refundAmountInCents, reconciliationReference, notes } = params;
+  const { orderId, adminUserId, refundAmountInCents, reconciliationReference, notes, businessId } = params;
 
   return await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
@@ -240,6 +249,10 @@ export async function recordManualRefund(params: {
 
     if (!order) {
       throw new Error(`Order not found with ID: ${orderId}`);
+    }
+
+    if (businessId && order.businessId !== businessId) {
+      throw new Error("Access denied: Order does not belong to the active business.");
     }
 
     if (order.paymentStatus !== "PAID" && order.paymentStatus !== "REFUNDED") {
@@ -288,6 +301,7 @@ export async function getReturnRequests(params: {
   status?: ReturnStatus;
   page?: number;
   limit?: number;
+  businessId?: string;
 }) {
   const page = Math.max(1, params.page || 1);
   const limit = Math.max(1, Math.min(50, params.limit || 10));
@@ -297,6 +311,7 @@ export async function getReturnRequests(params: {
     userId: params.userId || undefined,
     orderId: params.orderId || undefined,
     status: params.status || undefined,
+    businessId: params.businessId || undefined,
   };
 
   const [total, returns] = await prisma.$transaction([
