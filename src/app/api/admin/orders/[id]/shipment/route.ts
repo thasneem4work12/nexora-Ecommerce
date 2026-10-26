@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("MANAGE_ORDERS");
+    const { businessId } = await requireAdminApi(request, "MANAGE_ORDERS");
     const { id } = await params;
     const body = await request.json();
 
@@ -23,13 +23,18 @@ export async function POST(
       );
     }
 
-    const shipment = await updateOrderShipment(id, {
-      carrier,
-      trackingNumber,
-      trackingUrl,
-      status,
-      notes,
-    });
+    const shipment = await updateOrderShipment(
+      id,
+      {
+        carrier,
+        trackingNumber,
+        trackingUrl,
+        status,
+        notes,
+        businessId,
+      },
+      businessId
+    );
 
     return NextResponse.json({
       success: true,

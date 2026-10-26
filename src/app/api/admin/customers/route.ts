@@ -4,7 +4,7 @@ import { getAdminCustomers, type GetAdminCustomersParams } from "@/services/admi
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_CUSTOMERS");
+    const { businessId } = await requireAdminApi(request, "VIEW_CUSTOMERS");
 
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || undefined;
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       sortBy,
       page: isNaN(page) ? 1 : page,
       limit: isNaN(limit) ? 20 : limit,
+      businessId,
     });
 
     return NextResponse.json({

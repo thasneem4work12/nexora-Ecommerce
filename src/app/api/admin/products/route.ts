@@ -7,7 +7,7 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_PRODUCTS");
+    const { businessId } = await requireAdminApi(request, "VIEW_PRODUCTS");
 
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || undefined;
@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 15;
 
     const result = await getAdminProducts({
+      businessId,
       search,
       categoryId,
       status,
@@ -49,10 +50,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdminApi("CREATE_PRODUCT");
+    const { user, businessId } = await requireAdminApi(request, "CREATE_PRODUCT");
     const body = await request.json();
 
-    const product = await createProduct(body, user.id);
+    const product = await createProduct(body, user.id, businessId);
 
     return NextResponse.json(
       {

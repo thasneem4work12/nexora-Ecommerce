@@ -10,11 +10,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("MANAGE_CATEGORIES");
+    const { businessId } = await requireAdminApi(request, "MANAGE_CATEGORIES");
     const { id } = await params;
     const body = await request.json();
 
-    const updated = await updateCategory(id, body);
+    const updated = await updateCategory(id, body, businessId);
 
     return NextResponse.json({
       success: true,
@@ -38,14 +38,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("MANAGE_CATEGORIES");
+    const { businessId } = await requireAdminApi(request, "MANAGE_CATEGORIES");
     const { id } = await params;
 
-    const deleted = await deleteCategory(id);
+    const deleted = await deleteCategory(id, businessId);
 
     return NextResponse.json({
       success: true,

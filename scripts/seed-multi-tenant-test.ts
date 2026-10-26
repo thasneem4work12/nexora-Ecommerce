@@ -1,6 +1,11 @@
 import { prisma } from "../src/lib/prisma";
 
 async function seedMultiTenant() {
+  if (process.env.NODE_ENV === "production") {
+    console.error("FATAL: Multi-tenant test seeding is strictly forbidden in production environments.");
+    process.exit(1);
+  }
+
   console.log("=== Seeding Multi-Tenant Test Businesses ===");
 
   // 1. Locate primary admin user or create one if needed

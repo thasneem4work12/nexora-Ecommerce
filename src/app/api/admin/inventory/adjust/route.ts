@@ -4,7 +4,7 @@ import { adjustStock } from "@/services/inventory.service";
 
 export async function POST(request: NextRequest) {
   try {
-    const { user } = await requireAdminApi("ADJUST_INVENTORY");
+    const { user, businessId } = await requireAdminApi(request, "ADJUST_INVENTORY");
     const body = await request.json();
 
     const { variantId, delta, type, reason, reference } = body;
@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await adjustStock({
+      businessId,
       variantId,
       delta,
       type: type || "MANUAL_CORRECTION",

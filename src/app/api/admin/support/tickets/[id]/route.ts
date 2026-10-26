@@ -4,14 +4,14 @@ import { getSupportTicketById, updateTicketAttributes } from "@/services/support
 import type { TicketStatus, TicketPriority } from "@prisma/client";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminApi("VIEW_ORDERS");
+    const { user, businessId } = await requireAdminApi(request, "VIEW_ORDERS");
     const { id } = await params;
 
-    const ticket = await getSupportTicketById(id, admin.user.id, admin.user.role);
+    const ticket = await getSupportTicketById(id, user.id, user.role, businessId);
     if (!ticket) {
       return NextResponse.json(
         { success: false, error: "Support ticket not found" },
@@ -42,7 +42,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminApi("MANAGE_ORDERS");
+    const { user, businessId } = await requireAdminApi(request, "MANAGE_ORDERS");
     const { id } = await params;
     const body = await request.json();
 
@@ -50,10 +50,11 @@ export async function PUT(
 
     const updated = await updateTicketAttributes({
       ticketId: id,
-      adminUserId: admin.user.id,
+      adminUserId: user.id,
       status: status as TicketStatus,
       priority: priority as TicketPriority,
       assignedStaffId,
+      businessId,
     });
 
     return NextResponse.json({

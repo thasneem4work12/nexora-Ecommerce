@@ -5,7 +5,7 @@ import type { OrderStatus, PaymentStatus, FulfillmentStatus } from "@prisma/clie
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_ORDERS");
+    const { businessId } = await requireAdminApi(request, "VIEW_ORDERS");
 
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || undefined;
@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     const [ordersResult, metrics] = await Promise.all([
       getAdminOrders({
+        businessId,
         search,
         status,
         paymentStatus,
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
         page: isNaN(page) ? 1 : page,
         limit: isNaN(limit) ? 20 : limit,
       }),
-      getAdminOrderMetrics(),
+      getAdminOrderMetrics(businessId),
     ]);
 
     return NextResponse.json({

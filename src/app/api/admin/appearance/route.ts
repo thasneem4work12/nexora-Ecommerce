@@ -1,16 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi, AuthError } from "@/lib/admin-auth";
 import { getStoreAppearance } from "@/services/theme.service";
 import { THEME_REGISTRY } from "@/lib/themes/definitions";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    await requireAdminApi("VIEW_APPEARANCE");
+    const { businessId } = await requireAdminApi(req, "VIEW_APPEARANCE");
 
-    const published = await getStoreAppearance({ previewDraft: false });
+    const published = await getStoreAppearance({ businessId, previewDraft: false });
     const configRecord = await prisma.storeThemeConfig.findUnique({
-      where: { businessId: "default-store" },
+      where: { businessId },
     });
 
     const themesList = Object.values(THEME_REGISTRY).map((t) => ({

@@ -4,14 +4,14 @@ import { getAdminOrderById, updateAdminOrderStatus } from "@/services/admin-orde
 import type { OrderStatus } from "@prisma/client";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("VIEW_ORDERS");
+    const { businessId } = await requireAdminApi(request, "VIEW_ORDERS");
     const { id } = await params;
 
-    const order = await getAdminOrderById(id);
+    const order = await getAdminOrderById(id, businessId);
     if (!order) {
       return NextResponse.json(
         { success: false, error: "Order not found" },
@@ -42,7 +42,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("MANAGE_ORDERS");
+    const { businessId } = await requireAdminApi(request, "MANAGE_ORDERS");
     const { id } = await params;
     const body = await request.json();
 
@@ -57,7 +57,8 @@ export async function PATCH(
     const updated = await updateAdminOrderStatus(
       id,
       status as OrderStatus,
-      notes
+      notes,
+      businessId
     );
 
     return NextResponse.json({

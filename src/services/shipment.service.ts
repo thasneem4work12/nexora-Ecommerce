@@ -4,6 +4,7 @@ import { notifyOrderShipped, notifyOrderDelivered } from "./notification.service
 
 export interface UpdateShipmentInput {
   orderId: string;
+  businessId?: string;
   carrier?: string;
   trackingNumber?: string;
   trackingUrl?: string;
@@ -53,6 +54,10 @@ export async function updateOrderShipment(input: UpdateShipmentInput) {
 
     if (!order) {
       throw new Error(`Order not found with ID: ${orderId}`);
+    }
+
+    if (input.businessId && order.businessId && order.businessId !== input.businessId) {
+      throw new Error("Access denied: Order does not belong to the active business.");
     }
 
     if (order.status === "CANCELLED") {

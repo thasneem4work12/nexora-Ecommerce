@@ -3,14 +3,14 @@ import { requireAdminApi, AuthError } from "@/lib/admin-auth";
 import { archiveProduct, restoreProduct } from "@/services/admin-catalog.service";
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("ARCHIVE_PRODUCT");
+    const { businessId } = await requireAdminApi(request, "ARCHIVE_PRODUCT");
     const { id } = await params;
 
-    const archived = await archiveProduct(id);
+    const archived = await archiveProduct(id, businessId);
 
     return NextResponse.json({
       success: true,
@@ -35,14 +35,14 @@ export async function POST(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("ARCHIVE_PRODUCT");
+    const { businessId } = await requireAdminApi(request, "ARCHIVE_PRODUCT");
     const { id } = await params;
 
-    const restored = await restoreProduct(id);
+    const restored = await restoreProduct(id, businessId);
 
     return NextResponse.json({
       success: true,

@@ -281,10 +281,13 @@ export async function updateOrderShipment(
     trackingUrl?: string;
     status?: ShipmentStatus;
     notes?: string;
-  }
+    businessId?: string;
+  },
+  businessId?: string
 ) {
   return await updateShipmentService({
     orderId,
+    businessId: input.businessId || businessId,
     carrier: input.carrier,
     trackingNumber: input.trackingNumber,
     trackingUrl: input.trackingUrl,

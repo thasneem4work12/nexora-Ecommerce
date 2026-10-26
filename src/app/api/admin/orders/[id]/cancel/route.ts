@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminApi("MANAGE_ORDERS");
+    const { user, businessId } = await requireAdminApi(request, "MANAGE_ORDERS");
     const { id } = await params;
     const body = await request.json();
 
@@ -21,9 +21,10 @@ export async function POST(
 
     const result = await reviewOrderCancellation({
       orderId: id,
-      adminUserId: admin.user.id,
+      adminUserId: user.id,
       decision,
       adminNotes,
+      businessId,
     });
 
     return NextResponse.json(result);

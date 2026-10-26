@@ -5,7 +5,7 @@ import type { TicketStatus, TicketPriority } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_ORDERS");
+    const { businessId } = await requireAdminApi(request, "VIEW_ORDERS");
 
     const searchParams = request.nextUrl.searchParams;
     const status = (searchParams.get("status") as TicketStatus) || undefined;
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       search,
       page: isNaN(page) ? 1 : page,
       limit: isNaN(limit) ? 20 : limit,
+      businessId,
     });
 
     return NextResponse.json({

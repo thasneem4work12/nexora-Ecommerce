@@ -1,14 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi, AuthError } from "@/lib/admin-auth";
 import { getDashboardMetrics } from "@/services/admin-catalog.service";
 import { getAdminOrderMetrics } from "@/services/admin-order.service";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    await requireAdminApi("VIEW_ADMIN");
+    const { businessId } = await requireAdminApi(req, "VIEW_ADMIN");
     const [catalogMetrics, orderMetrics] = await Promise.all([
-      getDashboardMetrics(),
-      getAdminOrderMetrics(),
+      getDashboardMetrics(businessId),
+      getAdminOrderMetrics(businessId),
     ]);
 
     return NextResponse.json({

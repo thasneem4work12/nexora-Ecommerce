@@ -4,7 +4,7 @@ import { getInventoryItems } from "@/services/inventory.service";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_INVENTORY");
+    const { businessId } = await requireAdminApi(request, "VIEW_INVENTORY");
 
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || undefined;
@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       lowStockOnly,
       page: isNaN(page) ? 1 : page,
       limit: isNaN(limit) ? 20 : limit,
+      businessId,
     });
 
     return NextResponse.json({

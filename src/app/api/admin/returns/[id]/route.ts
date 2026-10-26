@@ -8,7 +8,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminApi("MANAGE_ORDERS");
+    const { user, businessId } = await requireAdminApi(request, "MANAGE_ORDERS");
     const { id } = await params;
     const body = await request.json();
 
@@ -30,13 +30,14 @@ export async function PUT(
 
     const updated = await reviewReturnRequest({
       returnRequestId: id,
-      adminUserId: admin.user.id,
+      adminUserId: user.id,
       status: status as ReturnStatus,
       adminNotes,
       resolutionNotes,
       refundStatus: refundStatus as RefundStatus,
       refundAmountInCents: typeof refundAmountInCents === "number" ? refundAmountInCents : undefined,
       restockInventory: Boolean(restockInventory),
+      businessId,
     });
 
     return NextResponse.json({

@@ -7,7 +7,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdminApi("MANAGE_ORDERS");
+    const { user, businessId } = await requireAdminApi(request, "MANAGE_ORDERS");
     const { id } = await params;
     const body = await request.json();
 
@@ -22,10 +22,11 @@ export async function POST(
 
     const ticketMessage = await addTicketMessage({
       ticketId: id,
-      senderId: admin.user.id,
-      senderRole: admin.user.role,
+      senderId: user.id,
+      senderRole: user.role,
       message: message.trim(),
       isInternalNote: Boolean(isInternalNote),
+      businessId,
     });
 
     return NextResponse.json({

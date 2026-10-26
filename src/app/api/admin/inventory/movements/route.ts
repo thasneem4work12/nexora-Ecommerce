@@ -4,7 +4,7 @@ import { getInventoryMovements } from "@/services/inventory.service";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_AUDIT_LOGS");
+    const { businessId } = await requireAdminApi(request, "VIEW_AUDIT_LOGS");
 
     const searchParams = request.nextUrl.searchParams;
     const variantId = searchParams.get("variantId") || undefined;
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
       variantId,
       page: isNaN(page) ? 1 : page,
       limit: isNaN(limit) ? 25 : limit,
+      businessId,
     });
 
     return NextResponse.json({

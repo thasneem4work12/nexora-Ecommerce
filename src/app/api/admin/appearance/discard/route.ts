@@ -1,12 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi, AuthError } from "@/lib/admin-auth";
 import { discardDraftAppearance } from "@/services/theme.service";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
-    await requireAdminApi("MANAGE_APPEARANCE");
+    const { businessId } = await requireAdminApi(req, "MANAGE_APPEARANCE");
 
-    const appearance = await discardDraftAppearance();
+    const appearance = await discardDraftAppearance(businessId);
 
     return NextResponse.json({
       success: true,

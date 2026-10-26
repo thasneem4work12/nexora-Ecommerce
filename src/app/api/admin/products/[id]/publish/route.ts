@@ -7,12 +7,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("PUBLISH_PRODUCT");
+    const { businessId } = await requireAdminApi(request, "PUBLISH_PRODUCT");
     const { id } = await params;
     const body = await request.json();
     const published = Boolean(body?.published);
 
-    const updated = await setProductPublishStatus(id, published);
+    const updated = await setProductPublishStatus(id, published, businessId);
 
     return NextResponse.json({
       success: true,

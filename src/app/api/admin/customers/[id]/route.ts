@@ -3,14 +3,14 @@ import { requireAdminApi, AuthError } from "@/lib/admin-auth";
 import { getAdminCustomerById } from "@/services/admin-customer.service";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("VIEW_CUSTOMERS");
+    const { businessId } = await requireAdminApi(request, "VIEW_CUSTOMERS");
     const { id } = await params;
 
-    const customer = await getAdminCustomerById(id);
+    const customer = await getAdminCustomerById(id, businessId);
     if (!customer) {
       return NextResponse.json(
         { success: false, error: "Customer profile not found" },

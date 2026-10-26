@@ -5,10 +5,10 @@ import {
   createCategory,
 } from "@/services/admin-catalog.service";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    await requireAdminApi("VIEW_ADMIN");
-    const categories = await getAdminCategories();
+    const { businessId } = await requireAdminApi(request, "VIEW_ADMIN");
+    const categories = await getAdminCategories(businessId);
 
     return NextResponse.json({
       success: true,
@@ -30,10 +30,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdminApi("MANAGE_CATEGORIES");
+    const { businessId } = await requireAdminApi(request, "MANAGE_CATEGORIES");
     const body = await request.json();
 
-    const category = await createCategory(body);
+    const category = await createCategory(body, businessId);
 
     return NextResponse.json(
       {

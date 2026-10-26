@@ -6,14 +6,14 @@ import {
 } from "@/services/admin-catalog.service";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminApi("VIEW_PRODUCTS");
+    const { businessId } = await requireAdminApi(request, "VIEW_PRODUCTS");
     const { id } = await params;
 
-    const product = await getAdminProductById(id);
+    const product = await getAdminProductById(id, businessId);
     if (!product) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
@@ -44,11 +44,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { user } = await requireAdminApi("EDIT_PRODUCT");
+    const { user, businessId } = await requireAdminApi(request, "EDIT_PRODUCT");
     const { id } = await params;
     const body = await request.json();
 
-    const updated = await updateProduct(id, body, user.id);
+    const updated = await updateProduct(id, body, user.id, businessId);
 
     return NextResponse.json({
       success: true,
