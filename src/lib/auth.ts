@@ -6,7 +6,16 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  trustedOrigins: ["http://localhost:3000", "http://localhost:3005"],
+  trustedOrigins: [
+    "http://localhost:3000",
+    "http://localhost:3005",
+    ...(process.env.NEXT_PUBLIC_APP_URL ? [process.env.NEXT_PUBLIC_APP_URL] : []),
+    ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
+  ],
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+    cookiePrefix: "nexora",
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
@@ -21,16 +30,16 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // 1 day
   },
   rateLimit: {
-    window: 10,
-    max: 100,
+    window: 60,
+    max: process.env.NODE_ENV === "production" ? 120 : 500,
     customRules: {
       "/sign-in/*": {
-        window: 10,
-        max: 100,
+        window: 60,
+        max: process.env.NODE_ENV === "production" ? 20 : 100, // Strict 20/min in prod to mitigate brute-force attacks
       },
       "/sign-up/*": {
-        window: 10,
-        max: 100,
+        window: 60,
+        max: process.env.NODE_ENV === "production" ? 15 : 100, // Strict 15/min in prod
       },
     },
   },

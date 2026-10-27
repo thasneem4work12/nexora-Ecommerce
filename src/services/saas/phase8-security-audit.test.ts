@@ -56,9 +56,9 @@ describe("NEXORA Commerce — Phase 8 Final Billing and Security Verification Su
     }
 
     starterPlanId = starterPlan.id;
-    starterMonthlyPriceId = starterPlan.prices.find((p) => p.interval === "MONTHLY")!.id;
+    starterMonthlyPriceId = starterPlan.prices.find((p) => p.interval === "MONTHLY" && p.version === 1)?.id || starterPlan.prices.find((p) => p.interval === "MONTHLY")!.id;
     growthPlanId = growthPlan.id;
-    growthMonthlyPriceId = growthPlan.prices.find((p) => p.interval === "MONTHLY")!.id;
+    growthMonthlyPriceId = growthPlan.prices.find((p) => p.interval === "MONTHLY" && p.version === 1)?.id || growthPlan.prices.find((p) => p.interval === "MONTHLY")!.id;
 
     // 2. Create isolated test businesses A & B
     const uniqueSuffix = Date.now().toString(36);

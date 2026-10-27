@@ -1,18 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 import { Button } from "@/components/ui/Button";
 import { Shield, AlertCircle, ArrowRight } from "lucide-react";
+import { getSafeCallbackUrl } from "@/lib/redirect-utils";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const rawCallbackUrl = searchParams.get("callbackUrl");
+  const targetUrl = getSafeCallbackUrl(rawCallbackUrl);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +36,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/account");
+      router.push(targetUrl);
       router.refresh();
     } catch {
       setErrorMessage("An unexpected authentication error occurred.");
@@ -125,5 +130,21 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[75vh] flex items-center justify-center py-16 px-4">
+          <div className="text-center text-charcoal-500 font-light text-sm">
+            Loading authentication portal...
+          </div>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

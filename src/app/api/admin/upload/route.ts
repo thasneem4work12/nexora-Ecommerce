@@ -12,6 +12,8 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/avif",
 ]);
 
+import { isValidImageSignature } from "@/lib/image-utils";
+
 const EXTENSION_MAP: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -57,19 +59,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Generate secure, collision-free filename
+    // 5. Read file buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 6. Inspect magic bytes signature to prevent MIME spoofing
+    if (!isValidImageSignature(buffer, file.type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Security rejection: File content signature does not match declared image MIME type.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 7. Generate secure, collision-free filename
     const ext = EXTENSION_MAP[file.type] || "jpg";
     const randomHash = crypto.randomBytes(8).toString("hex");
     const safeFilename = `nexora-${Date.now()}-${randomHash}.${ext}`;
 
-    // 6. Ensure destination directory exists in public/uploads/products
+    // 8. Ensure destination directory exists in public/uploads/products
     const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
     await fs.mkdir(uploadDir, { recursive: true });
 
-    // 7. Write file
+    // 9. Write file
     const filePath = path.join(uploadDir, safeFilename);
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
     await fs.writeFile(filePath, buffer);
 
     const publicUrl = `/uploads/products/${safeFilename}`;

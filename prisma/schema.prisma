@@ -813,6 +813,9 @@ model Notification {
   @@index([orderId])
   @@index([type])
   @@index([isRead])
+  @@index([deliveryStatus])
+  @@index([userId, isRead])
+  @@index([businessId, isRead])
   @@map("notifications")
 }
 
@@ -993,6 +996,7 @@ model SaaSInvoice {
   @@index([subscriptionId])
   @@index([businessId])
   @@index([status])
+  @@index([businessId, status])
   @@index([invoiceNumber])
   @@map("saas_invoices")
 }
