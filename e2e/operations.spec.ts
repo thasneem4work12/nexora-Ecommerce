@@ -61,8 +61,8 @@ test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Supp
 
     // Log in as Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
 
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
@@ -91,8 +91,8 @@ test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Supp
   test("3. Store Director accesses Concierge Support Desk and replies to customer", async ({ page }) => {
     // Log in as Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
 
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });

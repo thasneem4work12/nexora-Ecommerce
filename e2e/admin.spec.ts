@@ -49,8 +49,8 @@ test.describe("NEXORA Commerce — Phase 3 Admin & Inventory E2E Suite", () => {
   }) => {
     // 1. Log in with bootstrapped owner credentials
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
 
     // Redirection lands on /account
@@ -97,8 +97,8 @@ test.describe("NEXORA Commerce — Phase 3 Admin & Inventory E2E Suite", () => {
 
     // 1. Sign in as Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 10000 });
 

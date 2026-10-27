@@ -50,20 +50,19 @@ services:
       - nexora-staging-net
 
   worker-staging:
-    image: node:20-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: nexora-staging-worker
     restart: unless-stopped
     depends_on:
       postgres-staging:
         condition: service_healthy
-    working_dir: /app
-    volumes:
-      - .:/app
     environment:
       NODE_ENV: staging
       DATABASE_URL: postgresql://nexora_staging:nexora_staging_pass@postgres-staging:5432/nexora_staging_db?schema=public
       WORKER_POLL_INTERVAL_MS: "10000"
-    command: ["npx", "tsx", "scripts/worker.ts"]
+    command: ["node", "worker.js"]
     networks:
       - nexora-staging-net
 

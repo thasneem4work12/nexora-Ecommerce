@@ -26,6 +26,7 @@ ENV BETTER_AUTH_URL="http://localhost:3000"
 ENV NEXT_PUBLIC_APP_URL="http://localhost:3000"
 RUN npx prisma generate
 RUN npm run build
+RUN npx esbuild scripts/worker.ts --bundle --platform=node --target=node20 --packages=external --outfile=dist/worker.js
 
 # Stage 4: Production Runner (Minimal, Non-Root)
 FROM base AS runner
@@ -48,6 +49,7 @@ RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/dist/worker.js ./worker.js
 
 USER nextjs
 
@@ -55,6 +57,6 @@ EXPOSE 3000
 
 # Built-in container healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1
 
 CMD ["node", "server.js"]

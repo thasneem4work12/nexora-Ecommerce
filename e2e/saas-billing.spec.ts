@@ -65,8 +65,8 @@ test.describe("NEXORA Commerce — Phase 8 SaaS Subscription Billing & Superadmi
 
     // Log in as bootstrapped store owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
 
     // Wait for account redirection
@@ -128,9 +128,9 @@ test.describe("NEXORA Commerce — Phase 8 SaaS Subscription Billing & Superadmi
 
     // Log in as platform superadmin
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("superadmin@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraSuperadmin2026!");
-    await page.getByRole("button", { name: /Authenticate/i }).click();
+    await page.locator('input[id="email"]').first().fill("superadmin@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraSuperadmin2026!");
+    await page.getByRole("button", { name: /Authenticate/i }).first().click();
 
     // Wait for account redirection
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
@@ -171,9 +171,9 @@ test.describe("NEXORA Commerce — Phase 8 SaaS Subscription Billing & Superadmi
 
     // Log in as platform superadmin
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("superadmin@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraSuperadmin2026!");
-    await page.getByRole("button", { name: /Authenticate/i }).click();
+    await page.locator('input[id="email"]').first().fill("superadmin@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraSuperadmin2026!");
+    await page.getByRole("button", { name: /Authenticate/i }).first().click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
     // Navigate to Platform Businesses
@@ -227,9 +227,9 @@ test.describe("NEXORA Commerce — Phase 8 SaaS Subscription Billing & Superadmi
 
     // Log in as platform superadmin
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("superadmin@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraSuperadmin2026!");
-    await page.getByRole("button", { name: /Authenticate/i }).click();
+    await page.locator('input[id="email"]').first().fill("superadmin@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraSuperadmin2026!");
+    await page.getByRole("button", { name: /Authenticate/i }).first().click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
     // Navigate to Platform Plans

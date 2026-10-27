@@ -79,8 +79,8 @@ test.describe("NEXORA Commerce — Phase 7 Multi-Tenant SaaS & Store Isolation E
 
     // 1. Authenticate as Store Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
@@ -123,8 +123,8 @@ test.describe("NEXORA Commerce — Phase 7 Multi-Tenant SaaS & Store Isolation E
 
     // 1. Authenticate as Store Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 

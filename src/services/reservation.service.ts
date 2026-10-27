@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-context";
+import { DEFAULT_BUSINESS_ID } from "@/lib/tenant-constants";
 import type { Prisma } from "@prisma/client";
 
 export const DEFAULT_RESERVATION_DURATION_MINUTES = 20;

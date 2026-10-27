@@ -64,7 +64,10 @@ export class MockPaymentProvider implements PaymentProvider {
       return false;
     }
 
-    if (process.env.NODE_ENV !== "production" && signature === "simulate_dev_client") {
+    if (
+      (process.env.NODE_ENV !== "production" || process.env.ALLOW_MOCK_PAYMENT === "true") &&
+      signature === "simulate_dev_client"
+    ) {
       return true;
     }
 

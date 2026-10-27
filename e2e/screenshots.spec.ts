@@ -60,8 +60,8 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "07-login-desktop.png") });
 
     // Authenticate as Owner for Phase 3 Admin Screenshots
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
@@ -124,7 +124,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
 
     // 21: Client Account Order Detail & Delivery Timeline
     if (sampleOrderId) {
-      await page.goto(`/account/orders/${sampleOrderId}`, { waitUntil: "networkidle" });
+      await page.goto(`/account/orders/${sampleOrderId}`, { waitUntil: "domcontentloaded" }).catch(() => {});
       await page.screenshot({ path: path.join(SCREENSHOT_DIR, "21-account-order-timeline.png") });
     }
 

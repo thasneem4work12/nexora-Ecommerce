@@ -34,15 +34,15 @@ export const auth = betterAuth({
   },
   rateLimit: {
     window: 60,
-    max: process.env.NODE_ENV === "production" ? 120 : 500,
+    max: process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true" ? 120 : 500,
     customRules: {
       "/sign-in/*": {
         window: 60,
-        max: process.env.NODE_ENV === "production" ? 20 : 100, // Strict 20/min in prod to mitigate brute-force attacks
+        max: process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true" ? 20 : 100, // Strict 20/min in prod to mitigate brute-force attacks
       },
       "/sign-up/*": {
         window: 60,
-        max: process.env.NODE_ENV === "production" ? 15 : 100, // Strict 15/min in prod
+        max: process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true" ? 15 : 100, // Strict 15/min in prod
       },
     },
   },

@@ -39,3 +39,6 @@ next-env.d.ts
 *.sql
 !prisma/migrations/**/*.sql
 
+# build bundles
+/dist/
+

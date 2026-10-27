@@ -32,8 +32,8 @@ test.describe("NEXORA Commerce — Phase 6 Theme Engine & Appearance Studio E2E 
   test("2. Store Owner logs into Appearance Studio and browses the 4 themes", async ({ page }) => {
     // Log in as Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
@@ -59,8 +59,8 @@ test.describe("NEXORA Commerce — Phase 6 Theme Engine & Appearance Studio E2E 
   }) => {
     // 1. Owner logs in
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
@@ -101,8 +101,8 @@ test.describe("NEXORA Commerce — Phase 6 Theme Engine & Appearance Studio E2E 
   test("4. Theme Preview in studio iframe and full window", async ({ page }) => {
     // Log in as Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
@@ -127,8 +127,8 @@ test.describe("NEXORA Commerce — Phase 6 Theme Engine & Appearance Studio E2E 
   test("5. Publish theme and restore safe default Editorial Luxury", async ({ page }) => {
     // Log in as Owner
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 

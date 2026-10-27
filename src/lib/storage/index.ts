@@ -128,7 +128,8 @@ export class S3StorageProvider implements StorageProvider {
     };
   }
 
-  async delete(_key: string): Promise<boolean> {
+  async delete(key: string): Promise<boolean> {
+    void key;
     return true;
   }
 

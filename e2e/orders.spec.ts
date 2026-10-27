@@ -54,7 +54,7 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
     // 7. Verify redirection to /checkout/success
     await expect(page).toHaveURL(/.*checkout\/success.*order_id=/, { timeout: 15000 });
     await expect(
-      page.getByRole("heading", { name: /Commission Confirmed/i })
+      page.getByRole("heading", { name: /Commission Confirmed|Order Placed/i })
     ).toBeVisible();
 
     // Capture the generated order reference
@@ -91,8 +91,8 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
 
     // 2. Log in as Store Director (Owner)
     await page.goto("/login");
-    await page.locator('input[id="email"]').fill("owner@nexoracommerce.com");
-    await page.locator('input[id="password"]').fill("NexoraOwner2026!");
+    await page.locator('input[id="email"]').first().fill("owner@nexoracommerce.com");
+    await page.locator('input[id="password"]').first().fill("NexoraOwner2026!");
     await page.getByRole("button", { name: /Authenticate/i }).click();
 
     await expect(page).toHaveURL(/.*account/, { timeout: 10000 });

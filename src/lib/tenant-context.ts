@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { cookies, headers } from "next/headers";
 import type { Business, StoreThemeConfig } from "@prisma/client";
+import {
+  DEFAULT_BUSINESS_ID,
+  DEFAULT_BUSINESS_SLUG,
+  ADMIN_BUSINESS_COOKIE,
+} from "./tenant-constants";
 
-export const DEFAULT_BUSINESS_ID = "default-store";
-export const DEFAULT_BUSINESS_SLUG = "nexora";
-export const ADMIN_BUSINESS_COOKIE = "nexora_admin_business_id";
+export {
+  DEFAULT_BUSINESS_ID,
+  DEFAULT_BUSINESS_SLUG,
+  ADMIN_BUSINESS_COOKIE,
+};
 
 export interface ResolvedTenant {
   business: Business;
