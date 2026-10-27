@@ -15,15 +15,15 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 
   isAvailable(): boolean {
-    // Strictly isolate mock provider from production
-    if (process.env.NODE_ENV === "production") {
+    // Strictly isolate mock provider from production unless explicitly enabled via ALLOW_MOCK_PAYMENT in staging/test
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true") {
       return false;
     }
     return true;
   }
 
   private assertEnvironment() {
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_MOCK_PAYMENT !== "true") {
       throw new Error(
         "Security violation: Mock payment provider is strictly disabled in production environments. Production must never allow mock payments."
       );

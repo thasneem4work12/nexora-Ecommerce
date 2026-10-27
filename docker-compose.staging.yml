@@ -1,0 +1,76 @@
+services:
+  postgres-staging:
+    image: postgres:16-alpine
+    container_name: nexora-staging-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nexora_staging
+      POSTGRES_PASSWORD: nexora_staging_pass
+      POSTGRES_DB: nexora_staging_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - staging_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexora_staging -d nexora_staging_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexora-staging-net
+
+  app-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexora-staging-app
+    restart: unless-stopped
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://nexora_staging:nexora_staging_pass@postgres-staging:5432/nexora_staging_db?schema=public
+      BETTER_AUTH_SECRET: nexora_staging_secret_key_at_least_32_characters_long_for_auth
+      BETTER_AUTH_URL: http://localhost:3005
+      NEXT_PUBLIC_APP_URL: http://localhost:3005
+      ALLOW_MOCK_PAYMENT: "true"
+      MOCK_PAYMENT_SECRET: staging_mock_payment_secret_random_secure_32_chars
+      PAYHERE_SANDBOX: "true"
+      PAYHERE_MERCHANT_ID: staging_sandbox_merchant_id
+      PAYHERE_MERCHANT_SECRET: staging_sandbox_merchant_secret
+      SAAS_BILLING_WEBHOOK_SECRET: staging_saas_webhook_secret_key_minimum_32_chars
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "3005:3000"
+    volumes:
+      - staging_uploads:/app/uploads
+    networks:
+      - nexora-staging-net
+
+  worker-staging:
+    image: node:20-alpine
+    container_name: nexora-staging-worker
+    restart: unless-stopped
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - .:/app
+    environment:
+      NODE_ENV: staging
+      DATABASE_URL: postgresql://nexora_staging:nexora_staging_pass@postgres-staging:5432/nexora_staging_db?schema=public
+      WORKER_POLL_INTERVAL_MS: "10000"
+    command: ["npx", "tsx", "scripts/worker.ts"]
+    networks:
+      - nexora-staging-net
+
+volumes:
+  staging_pgdata:
+  staging_uploads:
+
+networks:
+  nexora-staging-net:
+    driver: bridge

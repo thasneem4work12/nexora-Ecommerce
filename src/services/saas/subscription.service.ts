@@ -322,3 +322,63 @@ export async function transitionSubscriptionStatus(
     },
   });
 }
+
+/**
+ * Sweeps SaaS subscriptions for lifecycle changes:
+ * 1. Expired trials -> EXPIRED
+ * 2. Active periods ended with cancelAtPeriodEnd -> CANCELLED
+ * 3. Active periods ended without renewal -> PAST_DUE
+ */
+export async function sweepSaaSSubscriptions(): Promise<{
+  expiredTrials: number;
+  cancelledSubscriptions: number;
+  pastDueSubscriptions: number;
+}> {
+  const now = new Date();
+
+  // 1. Expire trials
+  const expiredTrials = await prisma.saaSSubscription.updateMany({
+    where: {
+      status: SaaSSubscriptionStatus.TRIALING,
+      trialEndsAt: { lt: now },
+    },
+    data: {
+      status: SaaSSubscriptionStatus.EXPIRED,
+      updatedAt: now,
+    },
+  });
+
+  // 2. Process period-end cancellations
+  const cancelledSubscriptions = await prisma.saaSSubscription.updateMany({
+    where: {
+      status: SaaSSubscriptionStatus.ACTIVE,
+      currentPeriodEndsAt: { lt: now },
+      cancelAtPeriodEnd: true,
+    },
+    data: {
+      status: SaaSSubscriptionStatus.CANCELLED,
+      cancelAtPeriodEnd: false,
+      updatedAt: now,
+    },
+  });
+
+  // 3. Mark un-renewed subscriptions past-due
+  const pastDueSubscriptions = await prisma.saaSSubscription.updateMany({
+    where: {
+      status: SaaSSubscriptionStatus.ACTIVE,
+      currentPeriodEndsAt: { lt: now },
+      cancelAtPeriodEnd: false,
+    },
+    data: {
+      status: SaaSSubscriptionStatus.PAST_DUE,
+      updatedAt: now,
+    },
+  });
+
+  return {
+    expiredTrials: expiredTrials.count,
+    cancelledSubscriptions: cancelledSubscriptions.count,
+    pastDueSubscriptions: pastDueSubscriptions.count,
+  };
+}
+

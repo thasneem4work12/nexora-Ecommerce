@@ -78,44 +78,54 @@ export interface LogEntry {
   };
 }
 
+export interface LoggerOptions {
+  correlationId?: string;
+  category?: string;
+  businessId?: string;
+  userId?: string;
+  context?: Record<string, unknown>;
+  error?: unknown;
+  [key: string]: unknown;
+}
+
 class StructuredLogger {
   private formatLog(
     level: LogLevel,
     message: string,
-    options?: {
-      correlationId?: string;
-      category?: string;
-      businessId?: string;
-      userId?: string;
-      context?: Record<string, unknown>;
-      error?: unknown;
-    }
+    options?: LoggerOptions
   ): LogEntry {
+    const { correlationId, category, businessId, userId, context, error, ...extra } = options || {};
+
+    const mergedContext = {
+      ...(context || {}),
+      ...extra,
+    };
+
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
-      correlationId: options?.correlationId,
+      correlationId,
       message,
-      category: options?.category,
-      businessId: options?.businessId,
-      userId: options?.userId,
-      context: options?.context
-        ? (redactSensitiveData(options.context) as Record<string, unknown>)
+      category,
+      businessId,
+      userId,
+      context: Object.keys(mergedContext).length > 0
+        ? (redactSensitiveData(mergedContext) as Record<string, unknown>)
         : undefined,
     };
 
-    if (options?.error) {
-      if (options.error instanceof Error) {
+    if (error) {
+      if (error instanceof Error) {
         entry.error = {
-          name: options.error.name,
-          message: options.error.message,
+          name: error.name,
+          message: error.message,
           // Only show stack trace in non-production environments to prevent leak
-          stack: process.env.NODE_ENV !== "production" ? options.error.stack : undefined,
+          stack: process.env.NODE_ENV !== "production" ? error.stack : undefined,
         };
       } else {
         entry.error = {
           name: "UnknownError",
-          message: String(options.error),
+          message: String(error),
         };
       }
     }
@@ -123,60 +133,29 @@ class StructuredLogger {
     return entry;
   }
 
-  info(
-    message: string,
-    options?: {
-      correlationId?: string;
-      category?: string;
-      businessId?: string;
-      userId?: string;
-      context?: Record<string, unknown>;
+  debug(message: string, options?: LoggerOptions) {
+    if (process.env.NODE_ENV !== "production") {
+      const entry = this.formatLog("debug", message, options);
+      console.log(JSON.stringify(entry));
     }
-  ) {
+  }
+
+  info(message: string, options?: LoggerOptions) {
     const entry = this.formatLog("info", message, options);
     console.log(JSON.stringify(entry));
   }
 
-  warn(
-    message: string,
-    options?: {
-      correlationId?: string;
-      category?: string;
-      businessId?: string;
-      userId?: string;
-      context?: Record<string, unknown>;
-      error?: unknown;
-    }
-  ) {
+  warn(message: string, options?: LoggerOptions) {
     const entry = this.formatLog("warn", message, options);
     console.warn(JSON.stringify(entry));
   }
 
-  error(
-    message: string,
-    options?: {
-      correlationId?: string;
-      category?: string;
-      businessId?: string;
-      userId?: string;
-      context?: Record<string, unknown>;
-      error?: unknown;
-    }
-  ) {
+  error(message: string, options?: LoggerOptions) {
     const entry = this.formatLog("error", message, options);
     console.error(JSON.stringify(entry));
   }
 
-  audit(
-    message: string,
-    options?: {
-      correlationId?: string;
-      category?: string;
-      businessId?: string;
-      userId?: string;
-      context?: Record<string, unknown>;
-    }
-  ) {
+  audit(message: string, options?: LoggerOptions) {
     const entry = this.formatLog("audit", message, options);
     console.log(JSON.stringify(entry));
   }

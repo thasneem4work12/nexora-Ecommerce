@@ -17,7 +17,10 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "admin:bootstrap": "tsx scripts/bootstrap-owner.ts"
+    "admin:bootstrap": "tsx scripts/bootstrap-owner.ts",
+    "db:deploy": "tsx scripts/deploy-migrations.ts",
+    "worker": "tsx scripts/worker.ts",
+    "worker:once": "tsx scripts/worker.ts --once"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi, AuthError } from "@/lib/admin-auth";
-import path from "path";
-import fs from "fs/promises";
-import crypto from "crypto";
+import { isValidImageSignature } from "@/lib/image-utils";
+import { getStorageProvider } from "@/lib/storage";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME_TYPES = new Set([
@@ -12,19 +11,10 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/avif",
 ]);
 
-import { isValidImageSignature } from "@/lib/image-utils";
-
-const EXTENSION_MAP: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/avif": "avif",
-};
-
 export async function POST(request: NextRequest) {
   try {
     // 1. Authorize admin
-    await requireAdminApi("CREATE_PRODUCT");
+    const { businessId } = await requireAdminApi(request, "CREATE_PRODUCT");
 
     // 2. Parse multipart form data
     const formData = await request.formData();
@@ -74,25 +64,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Generate secure, collision-free filename
-    const ext = EXTENSION_MAP[file.type] || "jpg";
-    const randomHash = crypto.randomBytes(8).toString("hex");
-    const safeFilename = `nexora-${Date.now()}-${randomHash}.${ext}`;
-
-    // 8. Ensure destination directory exists in public/uploads/products
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    // 9. Write file
-    const filePath = path.join(uploadDir, safeFilename);
-    await fs.writeFile(filePath, buffer);
-
-    const publicUrl = `/uploads/products/${safeFilename}`;
+    // 7. Store file via storage provider abstraction
+    const storage = getStorageProvider();
+    const uploadResult = await storage.upload(buffer, file.type, {
+      folder: "products",
+      businessId,
+    });
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      filename: safeFilename,
+      url: uploadResult.url,
+      filename: uploadResult.filename,
+      key: uploadResult.key,
       size: file.size,
       mimeType: file.type,
     });

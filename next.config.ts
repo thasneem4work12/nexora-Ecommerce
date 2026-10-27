@@ -51,6 +51,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   outputFileTracingRoot: path.join(__dirname),
   images: {
