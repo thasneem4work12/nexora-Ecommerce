@@ -39,6 +39,23 @@ export function generatePaymentNumber(): string {
 }
 
 export async function createSaaSInvoice(data: CreateInvoiceInput) {
+  // Financial arithmetic integrity checks
+  const linesTotal = data.lines.reduce((acc, line) => acc + line.totalAmountInCents, 0);
+  if (linesTotal !== data.subtotalInCents) {
+    throw new Error(
+      `Invoice arithmetic error: line items sum (${linesTotal} cents) does not match subtotal (${data.subtotalInCents} cents).`
+    );
+  }
+
+  const tax = data.taxInCents ?? 0;
+  const discount = data.discountInCents ?? 0;
+  const expectedTotal = data.subtotalInCents + tax - discount;
+  if (expectedTotal !== data.totalInCents) {
+    throw new Error(
+      `Invoice arithmetic error: calculated total (${expectedTotal} cents) does not match totalInCents (${data.totalInCents} cents).`
+    );
+  }
+
   const business = await prisma.business.findUnique({
     where: { id: data.businessId },
     select: { slug: true },

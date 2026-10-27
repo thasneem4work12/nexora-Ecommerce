@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Support E2E Suite", () => {
+  test.describe.configure({ mode: "serial" });
+
   const timestamp = Date.now();
   const customerEmail = `client_ops_${timestamp}@nexora-test.luxury`;
   const customerPassword = "LuxuryClient2026!";
@@ -65,8 +67,8 @@ test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Supp
 
     await expect(page).toHaveURL(/.*account/, { timeout: 15000 });
 
-    // Navigate to /admin/customers
-    await page.goto("/admin/customers");
+    // Navigate to /admin/customers with search for the customer email
+    await page.goto(`/admin/customers?search=${encodeURIComponent(customerEmail)}`);
     await expect(
       page.getByRole("heading", { name: /Clientele & Private Patrons/i })
     ).toBeVisible();

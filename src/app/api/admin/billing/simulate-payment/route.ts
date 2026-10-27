@@ -15,6 +15,14 @@ import { generateInvoiceNumber, generatePaymentNumber } from "@/services/saas/in
  */
 export async function POST(request: NextRequest) {
   try {
+    // Simulated billing is strictly prohibited in production environments
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { success: false, error: "Simulated billing is strictly disabled in production environments." },
+        { status: 403 }
+      );
+    }
+
     const adminContext = await requireAdminApi(request, "MANAGE_BILLING");
     const { businessId, user } = adminContext;
 

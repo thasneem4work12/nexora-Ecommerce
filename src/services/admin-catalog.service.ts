@@ -325,6 +325,25 @@ export async function createProduct(
   }
 
   const created = await prisma.$transaction(async (tx) => {
+    // Concurrency safety: acquire exclusive row-level lock on the business's subscription
+    // Serializes simultaneous product creations and plan downgrade attempts.
+    await tx.$queryRaw`SELECT id FROM "saas_subscriptions" WHERE "businessId" = ${businessId} FOR UPDATE`;
+
+    const activeSub = await tx.saaSSubscription.findUnique({
+      where: { businessId },
+      include: { plan: true },
+    });
+    if (activeSub && activeSub.plan) {
+      const activeCount = await tx.product.count({
+        where: { businessId, isArchived: false },
+      });
+      if (activeCount >= activeSub.plan.maxProducts) {
+        throw new Error(
+          `Plan product limit reached (${activeCount}/${activeSub.plan.maxProducts}). Please upgrade your plan to add more products.`
+        );
+      }
+    }
+
     // 1. Create product
     const product = await tx.product.create({
       data: {
@@ -604,12 +623,32 @@ export async function restoreProduct(id: string, businessId?: string) {
 
   const where: Prisma.ProductWhereUniqueInput = { id };
 
-  const updated = await prisma.product.update({
-    where,
-    data: {
-      isArchived: false,
-      archivedAt: null,
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    // Concurrency safety: acquire exclusive row-level lock on the business's subscription
+    await tx.$queryRaw`SELECT id FROM "saas_subscriptions" WHERE "businessId" = ${effectiveBusinessId} FOR UPDATE`;
+
+    const activeSub = await tx.saaSSubscription.findUnique({
+      where: { businessId: effectiveBusinessId },
+      include: { plan: true },
+    });
+    if (activeSub && activeSub.plan) {
+      const activeCount = await tx.product.count({
+        where: { businessId: effectiveBusinessId, isArchived: false },
+      });
+      if (activeCount >= activeSub.plan.maxProducts) {
+        throw new Error(
+          `Plan product limit reached (${activeCount}/${activeSub.plan.maxProducts}). Please upgrade your plan to restore products.`
+        );
+      }
+    }
+
+    return tx.product.update({
+      where,
+      data: {
+        isArchived: false,
+        archivedAt: null,
+      },
+    });
   });
 
   revalidateStorefront();

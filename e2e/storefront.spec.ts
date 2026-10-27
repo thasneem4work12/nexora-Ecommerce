@@ -117,7 +117,7 @@ test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
     await signOutBtn.click();
 
     // Verify redirection to home
-    await expect(page).toHaveURL(/http:\/\/localhost:3000\/?$/);
+    await expect(page).toHaveURL(/http:\/\/localhost:(3000|3005)\/?$/);
 
     // Access /account signed out -> protected prompt shown
     await page.goto("/account");

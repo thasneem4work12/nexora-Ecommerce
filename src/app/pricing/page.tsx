@@ -59,9 +59,14 @@ export default function PricingPage() {
       {/* Hero Header */}
       <div className="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 border-b border-[#EAE5D9]/60">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-bronze/10 text-bronze text-xs font-semibold tracking-wider uppercase mb-6">
-            <Sparkles className="w-3.5 h-3.5" />
-            NEXORA SaaS Platform Billing
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-bronze/10 text-bronze text-xs font-semibold tracking-wider uppercase">
+              <Sparkles className="w-3.5 h-3.5" />
+              NEXORA SaaS Platform Billing
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold tracking-wider uppercase">
+              DEMO PRICING — SUBJECT TO COMMERCIAL APPROVAL
+            </div>
           </div>
           <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl tracking-tight text-charcoal-900 mb-6">
             Architectural Commerce for Modern Ateliers
@@ -213,7 +218,7 @@ export default function PricingPage() {
                         isGrowth ? "text-white/50" : "text-charcoal-500"
                       }`}
                     >
-                      No contracts • Cancel anytime
+                      Demo rates • Subject to platform approval
                     </p>
                   </div>
                 </div>

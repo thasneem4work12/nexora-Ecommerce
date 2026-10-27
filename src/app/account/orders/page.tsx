@@ -115,10 +115,11 @@ export default async function CustomerOrdersPage() {
                         </span>
                       </div>
 
-                      <Link href={`/account/orders/${order.id}`}>
-                        <Button variant="outline" size="sm" className="text-xs">
-                          Details <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                        </Button>
+                      <Link
+                        href={`/account/orders/${order.id}`}
+                        className="inline-flex items-center justify-center rounded-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-charcoal-400 focus-visible:ring-offset-2 border border-charcoal-300 bg-transparent hover:bg-cream-100 text-charcoal-900 h-8 px-3 text-xs"
+                      >
+                        Details <ArrowRight className="w-3.5 h-3.5 ml-1" />
                       </Link>
                     </div>
                   </div>

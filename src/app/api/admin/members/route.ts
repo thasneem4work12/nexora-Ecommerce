@@ -165,6 +165,20 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7-day expiration
 
     const invitation = await prisma.$transaction(async (tx) => {
+      // Concurrency safety: acquire exclusive row-level lock on the business's subscription
+      await tx.$queryRaw`SELECT id FROM "saas_subscriptions" WHERE "businessId" = ${businessId} FOR UPDATE`;
+
+      const activeSub = await tx.saaSSubscription.findUnique({
+        where: { businessId },
+        include: { plan: true },
+      });
+      if (activeSub && activeSub.plan) {
+        const memberCount = await tx.businessMember.count({ where: { businessId } });
+        if (memberCount >= activeSub.plan.maxStaff) {
+          throw new Error(`Plan team limit reached (${memberCount}/${activeSub.plan.maxStaff}).`);
+        }
+      }
+
       const inv = await tx.businessInvitation.create({
         data: {
           businessId,

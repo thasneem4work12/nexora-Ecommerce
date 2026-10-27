@@ -18,24 +18,38 @@ export async function getAdminCustomers(params: GetAdminCustomersParams = {}) {
   const limit = Math.max(1, Math.min(50, params.limit || 10));
   const skip = (page - 1) * limit;
 
-  const where: Prisma.UserWhereInput = {
-    role: "CUSTOMER",
-    ...(params.businessId
-      ? {
+  const andClauses: Prisma.UserWhereInput[] = [{ role: "CUSTOMER" }];
+
+  if (params.businessId) {
+    andClauses.push({
+      OR: [
+        {
           orders: {
             some: { businessId: params.businessId },
           },
-        }
-      : {}),
-  };
+        },
+        {
+          supportTickets: {
+            some: { businessId: params.businessId },
+          },
+        },
+      ],
+    });
+  }
 
   if (params.search && params.search.trim() !== "") {
     const q = params.search.trim();
-    where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { email: { contains: q, mode: "insensitive" } },
-    ];
+    andClauses.push({
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    });
   }
+
+  const where: Prisma.UserWhereInput = {
+    AND: andClauses,
+  };
 
   const [total, users] = await prisma.$transaction([
     prisma.user.count({ where }),

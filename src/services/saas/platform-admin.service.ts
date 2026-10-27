@@ -8,6 +8,11 @@ export interface PlatformOverviewMetrics {
   mrrInCents: number;
   arrInCents: number;
   totalRevenueInCents: number;
+  simulatedRevenueInCents: number;
+  liveCollectedRevenueInCents: number;
+  unpaidInvoicesCount: number;
+  unpaidInvoicesAmountInCents: number;
+  currency: string;
   subscriptionsByStatus: Record<string, number>;
   subscriptionsByPlan: {
     planId: string;
@@ -28,6 +33,9 @@ export async function getPlatformOverviewMetrics(): Promise<PlatformOverviewMetr
     subscriptions,
     plans,
     paidInvoices,
+    unpaidInvoices,
+    simulatedPaymentsSum,
+    livePaymentsSum,
     recentInvoices,
     recentPayments,
     recentAuditLogs,
@@ -45,6 +53,19 @@ export async function getPlatformOverviewMetrics(): Promise<PlatformOverviewMetr
     prisma.saaSInvoice.aggregate({
       where: { status: "PAID" },
       _sum: { totalInCents: true },
+    }),
+    prisma.saaSInvoice.aggregate({
+      where: { status: { in: ["OPEN"] } },
+      _count: true,
+      _sum: { totalInCents: true },
+    }),
+    prisma.saaSPayment.aggregate({
+      where: { provider: "SIMULATED", status: "SUCCEEDED" },
+      _sum: { amountInCents: true },
+    }),
+    prisma.saaSPayment.aggregate({
+      where: { provider: { not: "SIMULATED" }, status: "SUCCEEDED" },
+      _sum: { amountInCents: true },
     }),
     prisma.saaSInvoice.findMany({
       take: 5,
@@ -98,6 +119,10 @@ export async function getPlatformOverviewMetrics(): Promise<PlatformOverviewMetr
 
   const arrInCents = mrrInCents * 12;
   const totalRevenueInCents = paidInvoices._sum.totalInCents || 0;
+  const simulatedRevenueInCents = simulatedPaymentsSum._sum.amountInCents || 0;
+  const liveCollectedRevenueInCents = livePaymentsSum._sum.amountInCents || 0;
+  const unpaidInvoicesCount = unpaidInvoices._count || 0;
+  const unpaidInvoicesAmountInCents = unpaidInvoices._sum.totalInCents || 0;
 
   return {
     totalBusinesses,
@@ -106,6 +131,11 @@ export async function getPlatformOverviewMetrics(): Promise<PlatformOverviewMetr
     mrrInCents,
     arrInCents,
     totalRevenueInCents,
+    simulatedRevenueInCents,
+    liveCollectedRevenueInCents,
+    unpaidInvoicesCount,
+    unpaidInvoicesAmountInCents,
+    currency: "USD",
     subscriptionsByStatus,
     subscriptionsByPlan,
     recentInvoices,

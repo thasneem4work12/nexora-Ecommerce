@@ -16,6 +16,14 @@ import { generateInvoiceNumber, generatePaymentNumber } from "@/services/saas/in
  */
 export async function POST(request: NextRequest) {
   try {
+    // Simulated billing webhooks are strictly prohibited in production environments
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { success: false, error: "Simulated billing webhook is strictly disabled in production." },
+        { status: 403 }
+      );
+    }
+
     const rawBody = await request.text();
     const signature = request.headers.get("x-saas-signature") || "";
 

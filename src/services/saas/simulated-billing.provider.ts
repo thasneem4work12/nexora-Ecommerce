@@ -16,6 +16,9 @@ export class SimulatedSaaSBillingProvider implements ISaaSBillingProvider {
   async createSubscriptionCheckout(
     options: SaaSSubscriptionCheckoutOptions
   ): Promise<SaaSCheckoutResult> {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SimulatedSaaSBillingProvider is strictly disabled in production.");
+    }
     const providerSubscriptionId = `sim_sub_${options.businessId.slice(0, 8)}_${Date.now().toString(36)}`;
     const providerPaymentId = `sim_pay_${Date.now().toString(36)}_${crypto.randomBytes(4).toString("hex")}`;
 

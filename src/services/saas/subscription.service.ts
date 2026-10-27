@@ -24,6 +24,9 @@ export interface CancelSubscriptionInput {
 
 export async function changeBusinessPlan(input: ChangePlanInput) {
   return prisma.$transaction(async (tx) => {
+    // Concurrency safety: acquire exclusive row-level lock on the business's subscription
+    await tx.$queryRaw`SELECT id FROM "saas_subscriptions" WHERE "businessId" = ${input.businessId} FOR UPDATE`;
+
     // 1. Fetch current subscription and target plan
     const sub = await tx.saaSSubscription.findUnique({
       where: { businessId: input.businessId },
