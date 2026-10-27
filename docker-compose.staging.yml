@@ -42,6 +42,11 @@ services:
       SAAS_BILLING_WEBHOOK_SECRET: staging_saas_webhook_secret_key_minimum_32_chars
       STORAGE_DRIVER: local
       UPLOAD_DIR: /app/uploads
+      NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-true}
+      PILOT_ACCESS_GATE_ENABLED: ${PILOT_ACCESS_GATE_ENABLED:-false}
+      PILOT_ACCESS_KEYS: ${PILOT_ACCESS_KEYS:-pilot_luxury_demo_2026,pilot_partner_tech_2026}
+      APPROVED_PILOT_HOSTNAME: ${APPROVED_PILOT_HOSTNAME:-}
+      EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-SIMULATED}
     ports:
       - "3005:3000"
     volumes:

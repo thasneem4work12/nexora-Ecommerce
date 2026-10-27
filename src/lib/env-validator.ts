@@ -4,7 +4,7 @@ import { z } from "zod";
  * NEXORA Commerce — Unified Environment Variable Validation Schema
  * Enforces strict environment separation, credential formatting, and fail-fast startup checks.
  */
-const envSchema = z
+export const envSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "staging", "production"]).default("development"),
     DATABASE_URL: z
@@ -30,8 +30,40 @@ const envSchema = z
     S3_ENDPOINT: z.string().optional(),
     S3_ACCESS_KEY_ID: z.string().optional(),
     S3_SECRET_ACCESS_KEY: z.string().optional(),
+    NEXT_PUBLIC_DEMO_MODE: z.enum(["true", "false"]).optional(),
+    PILOT_ACCESS_GATE_ENABLED: z.enum(["true", "false"]).optional(),
+    PILOT_ACCESS_KEYS: z.string().optional(),
+    APPROVED_PILOT_HOSTNAME: z.string().optional(),
+    EMAIL_DELIVERY_MODE: z.enum(["SIMULATED", "LOG_ONLY", "EXTERNAL"]).default("SIMULATED"),
   })
   .superRefine((data, ctx) => {
+    // Validate APPROVED_PILOT_HOSTNAME if provided
+    if (data.APPROVED_PILOT_HOSTNAME && data.APPROVED_PILOT_HOSTNAME.trim().length > 0) {
+      const hostname = data.APPROVED_PILOT_HOSTNAME.trim();
+      if (hostname.includes("*")) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["APPROVED_PILOT_HOSTNAME"],
+          message: "APPROVED_PILOT_HOSTNAME must not contain wildcards (*). An exact approved origin is required.",
+        });
+      }
+      try {
+        const parsedUrl = new URL(hostname);
+        if (!["https:", "http:"].includes(parsedUrl.protocol)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["APPROVED_PILOT_HOSTNAME"],
+            message: "APPROVED_PILOT_HOSTNAME must use http or https protocol.",
+          });
+        }
+      } catch {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["APPROVED_PILOT_HOSTNAME"],
+          message: "APPROVED_PILOT_HOSTNAME must be a valid absolute URL (e.g., https://xyz.trycloudflare.com).",
+        });
+      }
+    }
     // 1. Strict Production Security Guards
     if (data.NODE_ENV === "production") {
       if (data.ALLOW_MOCK_PAYMENT === "true") {

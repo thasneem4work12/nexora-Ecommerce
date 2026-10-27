@@ -26,6 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 import { StoreTenantProvider } from "@/context/StoreTenantContext";
+import { DemoEnvironmentBanner } from "@/components/common/DemoEnvironmentBanner";
 
 export default async function RootLayout({
   children,
@@ -62,6 +63,7 @@ export default async function RootLayout({
         </head>
       )}
       <body className="flex flex-col min-h-screen bg-canvas-primary text-charcoal-900 selection:bg-bronze/20 selection:text-bronze-dark">
+        <DemoEnvironmentBanner />
         <StoreTenantProvider
           initialBusiness={{
             id: "default-store",

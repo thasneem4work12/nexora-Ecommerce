@@ -16,6 +16,19 @@ export interface CreateNotificationInput {
 }
 
 /**
+ * Redacts email addresses to prevent PII leakage in application and tunnel log streams.
+ */
+export function maskEmail(email?: string | null): string {
+  if (!email) return "anonymous@example.com";
+  const parts = email.split("@");
+  if (parts.length !== 2) return "[INVALID_EMAIL]";
+  const [local, domain] = parts;
+  const maskedLocal =
+    local.length <= 2 ? `${local[0]}*` : `${local.slice(0, 2)}***${local.slice(-1)}`;
+  return `${maskedLocal}@${domain}`;
+}
+
+/**
  * Generates an Editorial Luxury branded HTML email template.
  */
 export function generateLuxuryEmailHtml(params: {
@@ -115,10 +128,19 @@ export async function sendTransactionalNotification(
       },
     });
 
-    // Development & Staging Transactional Email Adapter (Logger)
-    console.log(
-      `[Transactional Email Adapter] Notification ${notification.id} dispatched to ${recipientEmail}: "${input.title}"`
-    );
+    // Transactional Email Dispatch Adapter (Respects EMAIL_DELIVERY_MODE)
+    const deliveryMode = process.env.EMAIL_DELIVERY_MODE || "SIMULATED";
+    const maskedRecipient = maskEmail(recipientEmail);
+
+    if (deliveryMode === "DISABLED") {
+      console.log(
+        `[Transactional Email Suppressed] Mode: DISABLED | Notification: ${notification.id} | Recipient: ${maskedRecipient} | Title: "${input.title}"`
+      );
+    } else {
+      console.log(
+        `[Transactional Email Adapter] Mode: ${deliveryMode} | Notification: ${notification.id} | Recipient: ${maskedRecipient} | Title: "${input.title}"`
+      );
+    }
 
     return { success: true, notificationId: notification.id };
   } catch (err: unknown) {
@@ -291,6 +313,8 @@ export async function processNotificationOutbox(limit: number = 25): Promise<{
   let succeeded = 0;
   let failed = 0;
 
+  const deliveryMode = process.env.EMAIL_DELIVERY_MODE || "SIMULATED";
+
   for (const item of pending) {
     try {
       // Simulate/execute dispatch through email transport adapter
@@ -302,6 +326,12 @@ export async function processNotificationOutbox(limit: number = 25): Promise<{
           deliveryError: null,
         },
       });
+
+      if (deliveryMode !== "DISABLED") {
+        console.log(
+          `[Outbox Worker] Swept notice ${item.id} (${item.type}) for ${maskEmail(item.emailTo)} | Mode: ${deliveryMode}`
+        );
+      }
       succeeded++;
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);

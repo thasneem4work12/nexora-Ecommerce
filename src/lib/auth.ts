@@ -11,12 +11,16 @@ export const auth = betterAuth({
     "http://localhost:3005",
     ...(process.env.NEXT_PUBLIC_APP_URL ? [process.env.NEXT_PUBLIC_APP_URL] : []),
     ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
+    ...(process.env.APPROVED_PILOT_HOSTNAME && !process.env.APPROVED_PILOT_HOSTNAME.includes("*")
+      ? [process.env.APPROVED_PILOT_HOSTNAME.trim()]
+      : []),
   ],
   advanced: {
     useSecureCookies:
-      process.env.NODE_ENV === "production" &&
-      !process.env.BETTER_AUTH_URL?.startsWith("http://localhost") &&
-      !process.env.NEXT_PUBLIC_APP_URL?.startsWith("http://localhost"),
+      process.env.NODE_ENV === "production" ||
+      process.env.BETTER_AUTH_URL?.startsWith("https://") ||
+      process.env.NEXT_PUBLIC_APP_URL?.startsWith("https://") ||
+      (process.env.APPROVED_PILOT_HOSTNAME ? process.env.APPROVED_PILOT_HOSTNAME.startsWith("https://") : false),
     cookiePrefix: "nexora",
   },
   emailAndPassword: {
