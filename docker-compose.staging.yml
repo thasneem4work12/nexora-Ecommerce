@@ -68,6 +68,11 @@ services:
       DATABASE_URL: postgresql://nexora_staging:nexora_staging_pass@postgres-staging:5432/nexora_staging_db?schema=public
       WORKER_POLL_INTERVAL_MS: "10000"
     command: ["node", "worker.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'worker.js' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - nexora-staging-net
 

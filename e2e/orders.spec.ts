@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { clearAuthCookies } from "./helpers";
 
 test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillment E2E Suite", () => {
   let createdOrderNumber: string;
@@ -87,7 +88,7 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
     page,
   }) => {
     // 1. Clear session cookies to perform fresh director login
-    await page.context().clearCookies();
+    await clearAuthCookies(page.context());
 
     // 2. Log in as Store Director (Owner)
     await page.goto("/login");

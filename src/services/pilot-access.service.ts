@@ -238,8 +238,13 @@ export async function redeemPilotInvitation(
       const nextRedemptionCount = invitation.redemptionCount + 1;
       const isExhausted = nextRedemptionCount >= invitation.maxRedemptions;
 
-      await tx.pilotInvitation.update({
-        where: { id: invitation.id },
+      // Atomic concurrency lock: update only if status is ACTIVE and redemptionCount matches
+      const updateResult = await tx.pilotInvitation.updateMany({
+        where: {
+          id: invitation.id,
+          status: PilotInvitationStatus.ACTIVE,
+          redemptionCount: invitation.redemptionCount,
+        },
         data: {
           redemptionCount: nextRedemptionCount,
           status: isExhausted ? PilotInvitationStatus.REDEEMED : PilotInvitationStatus.ACTIVE,
@@ -247,6 +252,15 @@ export async function redeemPilotInvitation(
           lastRedeemedIp: ip,
         },
       });
+
+      if (updateResult.count === 0) {
+        return {
+          success: false,
+          error: "Invalid or expired pilot access token. Please verify your invitation.",
+          code: "INVALID_TOKEN",
+          statusCode: 401,
+        };
+      }
 
       // Generate Cryptographic Session
       const rawSessionSecret = crypto.randomBytes(32).toString("hex");

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
 import fs from "fs";
+import { clearAuthCookies, createPilotContext } from "./helpers";
 
 const SCREENSHOT_DIR = "C:/Users/DELL/.gemini/antigravity/brain/d5b439f2-3bc2-4b00-b531-ea446a6511bf/screenshots";
 
@@ -15,7 +16,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     test.setTimeout(360000);
 
     // 1. Desktop context
-    const desktopContext = await browser.newContext({
+    const desktopContext = await createPilotContext(browser, {
       viewport: { width: 1440, height: 900 },
     });
     const page = await desktopContext.newPage();
@@ -55,7 +56,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "06-register-desktop.png") });
 
     // 07: Login page desktop
-    await desktopContext.clearCookies();
+    await clearAuthCookies(desktopContext);
     await page.goto("/login", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "07-login-desktop.png") });
 
@@ -195,7 +196,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
     await desktopContext.close();
 
     // 2. Mobile context
-    const mobileContext = await browser.newContext({
+    const mobileContext = await createPilotContext(browser, {
       viewport: { width: 390, height: 844 },
     });
     const mobilePage = await mobileContext.newPage();

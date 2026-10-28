@@ -26,6 +26,7 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.staging
 
 # typescript
 *.tsbuildinfo
@@ -34,6 +35,7 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+/playwright/.auth/
 
 # database dumps
 *.sql

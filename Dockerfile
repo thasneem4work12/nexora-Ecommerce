@@ -11,7 +11,7 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN npm ci --fetch-retries=5 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
 
 # Stage 3: Build application
 FROM base AS builder

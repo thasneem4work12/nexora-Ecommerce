@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
 import fs from "fs";
+import { clearAuthCookies } from "./helpers";
 
 const SCREENSHOT_DIR = "C:/Users/DELL/.gemini/antigravity/brain/d5b439f2-3bc2-4b00-b531-ea446a6511bf/screenshots";
 
@@ -12,7 +13,7 @@ test.describe("NEXORA Commerce — Phase 8 SaaS Subscription Billing & Superadmi
   });
 
   test.beforeEach(async ({ context }) => {
-    await context.clearCookies();
+    await clearAuthCookies(context);
   });
 
   test("1. Public SaaS Pricing Page & Billing Toggle", async ({ page }) => {

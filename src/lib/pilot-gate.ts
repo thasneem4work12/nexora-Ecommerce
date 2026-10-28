@@ -124,9 +124,16 @@ export function validateHostHeader(req: NextRequest): boolean {
     }
   }
 
-  // If running in development mode without pilot gate, allow local IPs
-  if (process.env.NODE_ENV !== "production" && process.env.PILOT_ACCESS_GATE_ENABLED !== "true") {
-    return true;
+  // If running in development mode without pilot gate, allow local LAN IPs only
+  if (process.env.NODE_ENV === "development" && process.env.PILOT_ACCESS_GATE_ENABLED !== "true") {
+    const isPrivateIp =
+      cleanHost.startsWith("192.168.") ||
+      cleanHost.startsWith("10.") ||
+      cleanHost.startsWith("172.") ||
+      cleanHost.endsWith(".local");
+    if (isPrivateIp) {
+      return true;
+    }
   }
 
   return false;

@@ -19,7 +19,10 @@ export async function POST(req: NextRequest) {
 
     if (!result.success || !result.sessionToken) {
       return NextResponse.json(
-        { error: result.error || "Invalid or expired pilot access token." },
+        {
+          error: result.error || "Invalid or expired pilot access token.",
+          code: result.code || "INVALID_TOKEN",
+        },
         { status: result.statusCode || 401 }
       );
     }

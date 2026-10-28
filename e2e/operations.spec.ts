@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { clearAuthCookies } from "./helpers";
 
 test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Support E2E Suite", () => {
   test.describe.configure({ mode: "serial" });
@@ -57,7 +58,7 @@ test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Supp
 
   test("2. Store Director inspects customer directory and views patron dossier", async ({ page }) => {
     // Clear cookies to switch from customer to director
-    await page.context().clearCookies();
+    await clearAuthCookies(page.context());
 
     // Log in as Owner
     await page.goto("/login");

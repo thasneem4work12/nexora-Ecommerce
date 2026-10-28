@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
+import { clearAuthCookies, createPilotContext } from "./helpers";
 
 test.describe("NEXORA Commerce — Phase 6 Theme Engine & Appearance Studio E2E Suite", () => {
   test.beforeEach(async ({ context }) => {
     // Clear cookies between tests
-    await context.clearCookies();
+    await clearAuthCookies(context);
   });
 
   test("1. Enforces strict access control on /admin/appearance", async ({ page }) => {
@@ -81,7 +82,7 @@ test.describe("NEXORA Commerce — Phase 6 Theme Engine & Appearance Studio E2E 
     ).toBeVisible({ timeout: 10000 });
 
     // 4. Open an incognito/public browser context (unauthenticated public customer)
-    const publicContext = await browser.newContext();
+    const publicContext = await createPilotContext(browser);
     const publicPage = await publicContext.newPage();
     await publicPage.goto("/");
 

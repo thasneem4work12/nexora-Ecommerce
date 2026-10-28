@@ -1,4 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
+import fs from "fs";
+import path from "path";
+
+const pilotStatePath = path.join(__dirname, "playwright", ".auth", "pilot-session.json");
+const hasPilotSession = fs.existsSync(pilotStatePath);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -13,6 +18,7 @@ export default defineConfig({
   reporter: "html",
   use: {
     baseURL: "http://localhost:3005",
+    storageState: hasPilotSession ? pilotStatePath : undefined,
     trace: "on-first-retry",
     actionTimeout: 15000,
     navigationTimeout: 30000,

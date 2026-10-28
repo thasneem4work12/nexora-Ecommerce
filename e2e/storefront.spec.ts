@@ -11,7 +11,7 @@ test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
 
     // Verify announcement bar
     await expect(
-      page.getByText(/Complimentary Worldwide Delivery/i)
+      page.getByText(/Complimentary (Worldwide|Global Courier) Delivery/i)
     ).toBeVisible();
 
     // Verify hero call to action
@@ -106,7 +106,7 @@ test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
     // Verify redirection to /account
     await expect(page).toHaveURL(/.*account/, { timeout: 10000 });
     await expect(page.getByRole("heading", { name: /Welcome, Sir Alistair Finch/i })).toBeVisible();
-    await expect(page.getByText(/CUSTOMER/i)).toBeVisible();
+    await expect(page.getByText("CUSTOMER", { exact: true })).toBeVisible();
 
     // Session survives page refresh
     await page.reload();
