@@ -36,7 +36,7 @@ test.describe("Phase 2 Visual Verification Screenshots", () => {
 
     // 03: Product Details with Variant Selection
     await page.goto("/products/double-breasted-cashmere-trench", { waitUntil: "networkidle" });
-    const mediumVariantBtn = page.getByRole("button", { name: /Camel \/ Medium/i });
+    const mediumVariantBtn = page.getByRole("button", { name: /Camel \/ Medium/i }).first();
     await mediumVariantBtn.click();
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "03-product-details-desktop.png") });
 

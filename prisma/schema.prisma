@@ -1132,3 +1132,106 @@ model SaaSBillingAuditLog {
   @@map("saas_billing_audit_logs")
 }
 
+
+// ==============================================================================
+// Phase 10 / Pilot Final Hardening: Individual Pilot Access & Rate Limiting
+// ==============================================================================
+
+enum PilotInvitationStatus {
+  ACTIVE
+  REDEEMED
+  REVOKED
+  EXPIRED
+}
+
+enum PilotSessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model PilotInvitation {
+  id              String                @id @default(cuid())
+  tokenHash       String                @unique
+  testerName      String
+  testerEmail     String?
+  testerRole      String                @default("EXTERNAL_TESTER")
+  status          PilotInvitationStatus @default(ACTIVE)
+  expiresAt       DateTime
+  maxRedemptions  Int                   @default(1)
+  redemptionCount Int                   @default(0)
+  lastRedeemedAt  DateTime?
+  lastRedeemedIp  String?
+  revokedAt       DateTime?
+  revokedReason   String?
+  createdBy       String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  sessions        PilotSession[]
+  auditLogs       PilotAccessAuditLog[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@map("pilot_invitations")
+}
+
+model PilotSession {
+  id               String             @id @default(cuid())
+  invitationId     String
+  sessionTokenHash String             @unique
+  testerName       String
+  ipAddress        String?
+  userAgent        String?
+  status           PilotSessionStatus @default(ACTIVE)
+  expiresAt        DateTime
+  lastActiveAt     DateTime           @default(now())
+  revokedAt        DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  invitation       PilotInvitation    @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  auditLogs        PilotAccessAuditLog[]
+
+  @@index([invitationId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("pilot_sessions")
+}
+
+model PilotRateLimit {
+  id             String    @id @default(cuid())
+  identifier     String    @unique
+  action         String    @default("PILOT_UNLOCK")
+  failedAttempts Int       @default(1)
+  firstAttemptAt DateTime  @default(now())
+  lastAttemptAt  DateTime  @default(now())
+  blockedUntil   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([identifier])
+  @@index([blockedUntil])
+  @@map("pilot_rate_limits")
+}
+
+model PilotAccessAuditLog {
+  id           String           @id @default(cuid())
+  invitationId String?
+  sessionId    String?
+  action       String
+  identifier   String?
+  ipAddress    String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+
+  invitation   PilotInvitation? @relation(fields: [invitationId], references: [id], onDelete: SetNull)
+  session      PilotSession?    @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([invitationId])
+  @@index([sessionId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("pilot_access_audit_logs")
+}

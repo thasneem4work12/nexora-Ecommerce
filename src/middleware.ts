@@ -31,9 +31,10 @@ export async function middleware(req: NextRequest) {
     const isBypassPath =
       pathname.startsWith("/api/health") ||
       pathname.startsWith("/api/ready") ||
-      pathname.startsWith("/api/pilot") ||
+      pathname === "/api/pilot/unlock" ||
+      pathname === "/api/pilot/status" ||
+      pathname === "/api/pilot/lock" ||
       pathname === "/pilot-access" ||
-      pathname.startsWith("/uploads/") ||
       pathname === "/favicon.ico" ||
       pathname.startsWith("/_next/");
 

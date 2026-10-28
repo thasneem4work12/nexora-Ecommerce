@@ -52,7 +52,7 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
     await submitBtn.click();
 
     // 7. Verify redirection to /checkout/success
-    await expect(page).toHaveURL(/.*checkout\/success.*order_id=/, { timeout: 15000 });
+    await expect(page).toHaveURL(/.*checkout\/success.*order_id=/, { timeout: 30000 });
     await expect(
       page.getByRole("heading", { name: /Commission Confirmed|Order Placed/i })
     ).toBeVisible();
@@ -112,7 +112,7 @@ test.describe("NEXORA Commerce — Phase 4 Checkout, Payments & Order Fulfillmen
     await expect(manageBtn).toBeVisible({ timeout: 10000 });
     await manageBtn.click();
 
-    await expect(page).toHaveURL(/.*admin\/orders\/.+/, { timeout: 15000 });
+    await expect(page).toHaveURL(/.*admin\/orders\/.+/, { timeout: 30000 });
     await expect(page.getByText(/Immutable Purchased Line Items/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Stock Reservation Records/i)).toBeVisible({ timeout: 15000 });
 

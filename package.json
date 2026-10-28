@@ -20,7 +20,9 @@
     "admin:bootstrap": "tsx scripts/bootstrap-owner.ts",
     "db:deploy": "tsx scripts/deploy-migrations.ts",
     "worker": "tsx scripts/worker.ts",
-    "worker:once": "tsx scripts/worker.ts --once"
+    "worker:once": "tsx scripts/worker.ts --once",
+    "pilot:invite": "tsx scripts/create-pilot-invitation.ts",
+    "pilot:revoke": "tsx scripts/revoke-pilot-invitation.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

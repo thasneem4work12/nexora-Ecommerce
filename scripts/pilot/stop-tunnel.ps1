@@ -26,6 +26,8 @@ if (Test-Path $envFile) {
         $content = $content -replace "APPROVED_PILOT_HOSTNAME=https://.*", "APPROVED_PILOT_HOSTNAME="
         Set-Content -Path $envFile -Value $content
         Write-Host "Cleared APPROVED_PILOT_HOSTNAME in $envFile" -ForegroundColor Gray
+        docker compose -f docker-compose.staging.yml restart app-staging 2>$null | Out-Null
+        Write-Host "Reloaded app-staging container with cleared origins." -ForegroundColor Gray
     }
 }
 

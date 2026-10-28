@@ -32,6 +32,7 @@ export const envSchema = z
     S3_SECRET_ACCESS_KEY: z.string().optional(),
     NEXT_PUBLIC_DEMO_MODE: z.enum(["true", "false"]).optional(),
     PILOT_ACCESS_GATE_ENABLED: z.enum(["true", "false"]).optional(),
+    PILOT_GATE_SECRET: z.string().optional(),
     PILOT_ACCESS_KEYS: z.string().optional(),
     APPROVED_PILOT_HOSTNAME: z.string().optional(),
     EMAIL_DELIVERY_MODE: z.enum(["SIMULATED", "LOG_ONLY", "EXTERNAL"]).default("SIMULATED"),

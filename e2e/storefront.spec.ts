@@ -59,7 +59,7 @@ test.describe("NEXORA Storefront & Database Catalog E2E Suite", () => {
     await page.goto("/products/double-breasted-cashmere-trench");
 
     // Select Medium variant
-    const mediumVariantBtn = page.getByRole("button", { name: /Camel \/ Medium/i });
+    const mediumVariantBtn = page.getByRole("button", { name: /Camel \/ Medium/i }).first();
     await mediumVariantBtn.click();
 
     // Add to cart

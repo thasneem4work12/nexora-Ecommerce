@@ -97,8 +97,8 @@ docker stats --no-stream nexora-staging-app nexora-staging-postgres nexora-stagi
 | :--- | :--- | :--- |
 | **HTTP 502 Bad Gateway** (Cloudflare error page) | `app-staging` container has stopped or port 3005 is unresponsive. | Run `docker compose -f docker-compose.staging.yml restart app-staging`. Verify container status with `docker compose -f docker-compose.staging.yml ps`. |
 | **HTTP 403 Forbidden** (`INVALID_HOST_HEADER`) | Host header received by Next.js does not match `APPROVED_PILOT_HOSTNAME`. | Run `.\scripts\pilot\prepare-approved-host.ps1 -Hostname <current-tunnel-url>`. |
-| **HTTP 401 Unauthorized** (`PILOT_ACCESS_REQUIRED`) | Tester has not entered the invitation passkey, or the 24-hour cookie expired. | Direct tester to `/pilot-access` and provide an approved key from `PILOT_ACCESS_KEYS`. |
-| **HTTP 429 Too Many Requests** on `/api/pilot/unlock` | 5 failed passkey unlock attempts from tester IP within 5 minutes. | Rate limiter resets automatically after 5 minutes. Operator can restart `app-staging` to clear memory if needed immediately. |
+| **HTTP 401 Unauthorized** (`PILOT_ACCESS_REQUIRED`) | Tester has not entered a valid single-use token, or the 24-hour session expired. | Direct tester to `/pilot-access` and generate an individual token using `npx tsx scripts/create-pilot-invitation.ts --name "<Tester Name>"`. |
+| **HTTP 429 Too Many Requests** on `/api/pilot/unlock` | 5 failed unlock attempts from tester IP within 5 minutes. | Rate limiter is persisted in PostgreSQL (`pilot_rate_limits`). Blocks automatically for 5 minutes. Operator can unblock via PostgreSQL query if urgent. |
 | **Next.js CSRF Validation Failed** on login | Origin header does not match `trustedOrigins`. | Confirm `APPROVED_PILOT_HOSTNAME` is set to the exact tunnel URL with HTTPS and no trailing slash. |
 | **Worker Not Processing Jobs** | Worker container crashed or lost DB connection. | Run `docker compose -f docker-compose.staging.yml restart worker-staging`. |
 

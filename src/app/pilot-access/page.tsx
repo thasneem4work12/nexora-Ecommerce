@@ -82,7 +82,7 @@ function PilotAccessForm() {
               type="password"
               value={accessKey}
               onChange={(e) => setAccessKey(e.target.value)}
-              placeholder="e.g. pilot_luxury_demo_..."
+              placeholder="e.g. nxr_pilot_..."
               required
               disabled={loading}
               className="w-full bg-[#0c0a09] border border-stone-800 px-4 py-3 text-sm text-stone-200 placeholder-stone-600 focus:outline-none focus:border-amber-600 transition-colors"

@@ -11,10 +11,10 @@
 
 NEXORA Commerce is engineered as a multi-tenant, editorial-grade e-commerce SaaS platform.
 
-For the initial external technical pilot, the platform is hosted on the developer's local Windows 11 workstation using isolated Docker Compose containers and an on-demand, ephemeral Cloudflare Quick Tunnel. This architecture achieves **three critical goals**:
+For the external technical pilot, the platform is hosted on the operator's local Windows 11 workstation using isolated Docker Compose staging containers and an on-demand, ephemeral Cloudflare Quick Tunnel. This architecture achieves **three critical goals**:
 
 1. **Absolute Zero Financial Cost (LKR 0 / month)**: Eliminates recurring cloud hosting, cloud database, serverless compute, and DNS subscription costs.
-2. **Complete Data Sovereignty & Safety**: Zero sensitive customer data, API keys, or financial records are placed on third-party cloud hosting providers.
+2. **Strict Isolation & Synthetic Testing**: Staging operates against a dedicated PostgreSQL database container with synthetic personas and simulated payment flows.
 3. **Multi-Tenant Experience**: Allows invited testers to experience the complete platform (multi-store switching, custom brand themes, catalog browsing, cart operations, mock checkouts, concierge support, and platform superadmin controls) on real mobile and desktop devices.
 
 ---
@@ -29,6 +29,7 @@ For the initial external technical pilot, the platform is hosted on the develope
               ┌────────────────────────────────────────┐
               │    Cloudflare Global Edge Network      │
               │   (Ephemeral *.trycloudflare.com)      │
+              │   *Terminates TLS; Proxies HTTP payload│
               └───────────────────┬────────────────────┘
                                   │ Encrypted HTTP/2 Tunnel
                                   ▼
@@ -58,7 +59,19 @@ For the initial external technical pilot, the platform is hosted on the develope
 
 ---
 
-## 3. The 3 Golden Safety Rules of the Pilot
+## 3. Cloudflare Quick Tunnel Privacy & Exposure Review
+
+> [!IMPORTANT]
+> **Edge Decryption & Third-Party Privacy Notice**:
+> Ephemeral Cloudflare Quick Tunnels (`trycloudflare.com`) operate as reverse proxies that **terminate TLS encryption at Cloudflare's global edge network**.
+> - Incoming HTTP requests (headers, cookies, query parameters, and form/POST payloads) are decrypted at the Cloudflare edge before forwarding over the secure tunnel to the local machine.
+> - **Zero Real Customer Data**: Because NEXORA operates exclusively with synthetic mock catalog and customer data during the pilot, no real Personally Identifiable Information (PII) or real payment cardholder data ever transits the tunnel.
+> - **Internal Service Boundaries**: Cloudflare Quick Tunnel forwards traffic **exclusively** to the Next.js HTTP application port (3005). PostgreSQL (port 5433 / 5432), Docker daemon sockets, background worker processes, and environment files (`.env`, `.env.staging`) are **never exposed to or tunneled by Cloudflare**.
+> - **Zero DNS/Account Requirement**: Quick Tunnels require no Cloudflare user account, API token, or registered domain name, ensuring zero configuration leakage.
+
+---
+
+## 4. The 4 Golden Safety Rules of the Pilot
 
 > [!CAUTION]
 > **Rule 1: NEVER Run the Tunnel Unattended.**  
@@ -66,15 +79,19 @@ For the initial external technical pilot, the platform is hosted on the develope
 
 > [!IMPORTANT]
 > **Rule 2: NEVER Disable the Pilot Access Gate.**  
-> `PILOT_ACCESS_GATE_ENABLED=true` must remain active at all times when an external tunnel is open. An unauthenticated Quick Tunnel is publicly indexable; the application-level gate is the primary barrier stopping unauthorized traffic.
+> `PILOT_ACCESS_GATE_ENABLED=true` must remain active at all times when an external tunnel is open. An unauthenticated Quick Tunnel is publicly accessible on the internet; the application-level gate is the primary barrier stopping unauthorized traffic.
 
 > [!WARNING]
 > **Rule 3: NEVER Use Live Payments or Real Credentials.**  
 > All checkouts, cards, and SaaS subscriptions are simulated using synthetic sandboxes. Real credit card numbers or production API credentials must never be entered.
 
+> [!IMPORTANT]
+> **Rule 4: NEVER Share Multi-Use or Static Secrets.**  
+> Each tester receives an individual, cryptographically random single-use token (`nxr_pilot_...`). Passing the pilot gate only grants entry through the network perimeter; it never bestows Better Auth roles or administrative privileges.
+
 ---
 
-## 4. End-to-End Operational Lifecycle
+## 5. End-to-End Operational Lifecycle
 
 ### Phase 1: Pre-Demonstration Setup (T - 15 Minutes)
 1. Ensure the workstation is plugged into mains AC power.
@@ -101,32 +118,48 @@ For the initial external technical pilot, the platform is hosted on the develope
    ```
    Confirm that `http://localhost:3005/api/health` returns `healthy`.
 
-### Phase 3: Launch Ephemeral Tunnel (When Approved) (T - 5 Minutes)
+### Phase 3: Generate Individual Tester Invitations (T - 5 Minutes)
+Generate individual, single-use access tokens for each invited reviewer:
+```powershell
+npx tsx scripts/create-pilot-invitation.ts --name "Elena Rostova" --email "customer.luxury@example.com" --hours 48
+```
+The script will output:
+- Unique Invitation ID
+- Expiration timestamp (default 48 hours)
+- Single-use redemption allowance
+- **One-time invitation token (`nxr_pilot_<random>`)**
+
+*Repeat for each tester. Only the SHA-256 hash is persisted in PostgreSQL.*
+
+### Phase 4: Launch Ephemeral Tunnel with Fail-Closed Handshake (When Approved) (T - 2 Minutes)
 1. Launch the tunnel launcher script:
    ```powershell
    .\scripts\pilot\start-tunnel.ps1
    ```
 2. Type `CONFIRM` at the prompt.
-3. `cloudflared` will display your unique ephemeral URL:
-   `https://[random-subdomain].trycloudflare.com`
-4. In a second PowerShell window, register this hostname into Better Auth:
-   ```powershell
-   .\scripts\pilot\prepare-approved-host.ps1 -Hostname https://[random-subdomain].trycloudflare.com
-   ```
-   *This automatically validates the URL (no wildcards allowed) and updates `app-staging`.*
+3. The script automatically:
+   - Verifies staging app health and gate activation.
+   - Spawns `cloudflared` and acquires `https://*.trycloudflare.com`.
+   - Validates hostname syntax (strictly no wildcards).
+   - Injects `APPROVED_PILOT_HOSTNAME` into `.env.staging` and reloads `app-staging`.
+   - Executes an automated **Safe Origin Verification Handshake**:
+     - Tests `/api/health` connectivity via tunnel.
+     - Confirms unauthenticated root traffic redirects to `/pilot-access`.
+     - Confirms unauthorized Host headers receive 403 Forbidden.
+   - Aborts and kills the process immediately if any check fails (fail-closed).
 
-### Phase 4: Onboard Invited Testers (T - 0 Minutes)
-Distribute the following brief to your invited testers via secure channel (e.g. WhatsApp, Signal, or Email):
+### Phase 5: Onboard Invited Testers (T - 0 Minutes)
+Distribute the personalized brief to each invited tester via secure channel (e.g. WhatsApp, Signal, or Email):
 
 ```text
 Welcome to the NEXORA Commerce Technical Pilot Demonstration!
 
-URL: https://[random-subdomain].trycloudflare.com
-Invitation Passkey: pilot_luxury_demo_2026
+Access URL: https://[assigned-subdomain].trycloudflare.com
+Your One-Time Pilot Token: [INDIVIDUAL_TOKEN_FROM_PHASE_3]
 
 Instructions:
-1. Tap the URL on your mobile phone or laptop.
-2. Enter the Invitation Passkey to unlock the secure demonstration portal.
+1. Open the URL on your mobile browser or laptop.
+2. Enter your assigned single-use pilot token to unlock the demonstration portal.
 3. Explore the 3 curated luxury stores:
    - NEXORA Haute Couture: /store/nexora (Editorial Luxury theme)
    - Lumina Audio & Tech: /store/lumina-tech (Modern Minimal theme)
@@ -136,26 +169,31 @@ Instructions:
 5. File a concierge inquiry under your account orders.
 ```
 
-### Phase 5: Supervised Monitoring During Session
+### Phase 6: Supervised Monitoring During Session
 Open a PowerShell window to observe live server and worker ticks:
 ```powershell
 docker compose -f docker-compose.staging.yml logs -f --tail 25
 ```
 Watch for:
-- Gate unlocks (`Pilot access granted`).
+- Gate redemptions (`INVITATION_REDEEMED`).
+- Rate limiting enforcement on brute force attempts (`UNLOCK_FAILED_RATE_LIMITED`).
 - Order placement events.
 - Simulated transactional email dispatches with masked PII (`jo***e@example.com`).
 
-### Phase 6: Post-Demonstration Immediate Teardown (T + Session End)
-1. Stop the external tunnel:
+### Phase 7: Instant Revocation & Post-Demonstration Teardown
+1. If an individual token needs immediate revocation during the pilot:
+   ```powershell
+   npx tsx scripts/revoke-pilot-invitation.ts --invitation <invitation-id>
+   ```
+2. Stop the external tunnel (kills process, clears origin, resets container):
    ```powershell
    .\scripts\pilot\stop-tunnel.ps1
    ```
-2. Stop the local staging containers:
+3. Stop the local staging containers:
    ```powershell
    .\scripts\pilot\stop-local-staging.ps1
    ```
-3. Verify 100% clean teardown:
+4. Verify 100% clean teardown:
    ```powershell
    .\scripts\pilot\verify-cleanup.ps1
    ```
@@ -163,7 +201,7 @@ Watch for:
 
 ---
 
-## 5. Multi-Store Test Matrix & Seeded Accounts
+## 6. Multi-Store Test Matrix & Seeded Accounts
 
 | Store Brand | Route / URL | Active Theme | Seeded Products | Sample Customer Login |
 | :--- | :--- | :--- | :--- | :--- |
@@ -174,7 +212,7 @@ Watch for:
 
 ---
 
-## 6. Zero-Cost Budget Verification
+## 7. Zero-Cost Budget Verification
 
 - **Compute & Server Hosting**: $0.00 / month (Local workstation CPU/RAM).
 - **Database Hosting**: $0.00 / month (Local Docker PostgreSQL 16 on SSD).

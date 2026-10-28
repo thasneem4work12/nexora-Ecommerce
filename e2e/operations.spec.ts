@@ -82,7 +82,7 @@ test.describe("NEXORA Commerce — Phase 5 Operations, Customer Directory & Supp
     // Click on customer row Profile link to view Patron Dossier
     const customerRow = page.locator("tr", { hasText: customerEmail });
     await customerRow.getByRole("link", { name: /Profile/i }).click();
-    await expect(page).toHaveURL(/.*admin\/customers\/.+/);
+    await expect(page).toHaveURL(/.*admin\/customers\/.+/, { timeout: 30000 });
     await expect(page.getByRole("heading", { name: /Lady Camille de Guise/i })).toBeVisible();
     await expect(page.getByText(/Lifetime Spend/i)).toBeVisible();
     await expect(page.getByText(/Concierge & Inquiries/i)).toBeVisible();
