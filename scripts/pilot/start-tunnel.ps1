@@ -242,10 +242,14 @@ try {
     if (Test-Path $envFile) {
         $cleanContent = Get-Content $envFile -Raw
         $cleanContent = $cleanContent -replace 'APPROVED_PILOT_HOSTNAME=.*', 'APPROVED_PILOT_HOSTNAME='
-        Set-Content -Path $envFile -Value $cleanContent
+        Set-Content -Path $envFile -Value $cleanContent -ErrorAction SilentlyContinue
         Write-Host 'Cleared APPROVED_PILOT_HOSTNAME in .env.staging.' -ForegroundColor Green
-        docker compose -f docker-compose.staging.yml restart app-staging 2>$null | Out-Null
-        Write-Host 'Restarted app-staging container with closed origin.' -ForegroundColor Green
+        docker compose -f docker-compose.staging.yml restart app-staging
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host 'WARNING: Could not cleanly reload app-staging container during cleanup!' -ForegroundColor Red
+        } else {
+            Write-Host 'Restarted app-staging container with closed origin.' -ForegroundColor Green
+        }
     }
 
     if (Test-Path $tunnelLog) {

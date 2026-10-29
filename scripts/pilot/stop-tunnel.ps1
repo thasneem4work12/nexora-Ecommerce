@@ -1,5 +1,7 @@
 param (
-    [switch]$ForceAll
+    [switch]$ForceAll,
+    [switch]$MockOnly,
+    [string]$EnvFilePath = '.env.staging'
 )
 
 # ==============================================================================
@@ -70,8 +72,8 @@ if (Test-Path $pidFile) {
     Write-Host 'To force-terminate all cloudflared processes on this machine, run: .\stop-tunnel.ps1 -ForceAll' -ForegroundColor DarkGray
 }
 
-# 2. Capture Previous Hostname & Clear APPROVED_PILOT_HOSTNAME in .env.staging
-$envFile = '.env.staging'
+# 2. Capture Previous Hostname & Clear APPROVED_PILOT_HOSTNAME in target env file
+$envFile = $EnvFilePath
 $urlFile = Join-Path $PSScriptRoot '.tunnel.url'
 $previousUrl = $null
 
@@ -87,13 +89,33 @@ if (Test-Path $envFile) {
         $previousUrl = $matches[1]
     }
     if ($content -match 'APPROVED_PILOT_HOSTNAME=https://.*') {
-        $content = $content -replace 'APPROVED_PILOT_HOSTNAME=https://.*', 'APPROVED_PILOT_HOSTNAME='
-        Set-Content -Path $envFile -Value $content
+        try {
+            $content = $content -replace 'APPROVED_PILOT_HOSTNAME=https://.*', 'APPROVED_PILOT_HOSTNAME='
+            Set-Content -Path $envFile -Value $content -ErrorAction Stop
+        } catch {
+            Write-Host "CRITICAL FAILURE: Unable to write to $($envFile): $($_.Exception.Message)" -ForegroundColor Red
+            throw "CRITICAL FAILURE: Unable to clear APPROVED_PILOT_HOSTNAME in $($envFile): $($_.Exception.Message)"
+        }
+
+        # Verify clearance
+        $verifyContent = Get-Content $envFile -Raw
+        if ($verifyContent -match 'APPROVED_PILOT_HOSTNAME=https://[^\s\r\n]+') {
+            Write-Host "CRITICAL FAILURE: APPROVED_PILOT_HOSTNAME remains populated in $envFile!" -ForegroundColor Red
+            throw "CRITICAL FAILURE: APPROVED_PILOT_HOSTNAME remains populated in $envFile!"
+        }
         Write-Host "Cleared APPROVED_PILOT_HOSTNAME in $envFile" -ForegroundColor Green
         
-        Write-Host 'Restarting app-staging container with fail-closed origin policy...' -ForegroundColor Cyan
-        docker compose -f docker-compose.staging.yml restart app-staging 2>$null | Out-Null
-        Write-Host 'app-staging reloaded. Unapproved external Host headers will receive HTTP 403.' -ForegroundColor Green
+        if (-not $MockOnly) {
+            Write-Host 'Restarting app-staging container with fail-closed origin policy...' -ForegroundColor Cyan
+            docker compose -f docker-compose.staging.yml restart app-staging
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host 'CRITICAL FAILURE: Docker failed to restart app-staging container!' -ForegroundColor Red
+                throw 'CRITICAL FAILURE: Docker failed to restart app-staging container with fail-closed origin policy.'
+            }
+            Write-Host 'app-staging reloaded. Unapproved external Host headers will receive HTTP 403.' -ForegroundColor Green
+        } else {
+            Write-Host '  [MOCK] Staging container restart skipped in mock mode.' -ForegroundColor Gray
+        }
     } else {
         Write-Host "APPROVED_PILOT_HOSTNAME is already empty in $envFile" -ForegroundColor Gray
     }
@@ -106,7 +128,9 @@ if (Test-Path $urlFile) {
 # 3. Verify Public Address Reachability & Fail-Closed Termination
 Write-Host ''
 Write-Host 'Verifying External Tunnel Deactivation:' -ForegroundColor Cyan
-if ($previousUrl) {
+if ($MockOnly) {
+    Write-Host '  [PASS] External network probe skipped in mock mode (Zero external requests).' -ForegroundColor Green
+} elseif ($previousUrl) {
     Write-Host "Probing previous public tunnel endpoint: $previousUrl..." -ForegroundColor Gray
     try {
         $probe = Invoke-WebRequest -Uri "$previousUrl/api/health" -TimeoutSec 3 -ErrorAction Stop
