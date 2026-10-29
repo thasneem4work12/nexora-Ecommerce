@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: nexora_staging_pass
       POSTGRES_DB: nexora_staging_db
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - staging_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -48,7 +48,7 @@ services:
       APPROVED_PILOT_HOSTNAME: ${APPROVED_PILOT_HOSTNAME:-}
       EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-SIMULATED}
     ports:
-      - "3005:3000"
+      - "127.0.0.1:3005:3000"
     volumes:
       - staging_uploads:/app/uploads
     networks:
