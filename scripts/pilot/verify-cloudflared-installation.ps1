@@ -43,12 +43,27 @@ if ($wingetCmd) {
 
 # 2. Check cloudflared CLI Installation and Version
 Write-Host '[2/7] Checking for cloudflared executable in system PATH...' -ForegroundColor Gray
+
+# Refresh environment PATH from registry to pick up newly installed tools
+$machinePath = [System.Environment]::GetEnvironmentVariable('Path', 'Machine')
+$userPath = [System.Environment]::GetEnvironmentVariable('Path', 'User')
+if ($machinePath -or $userPath) {
+    $env:Path = "$machinePath;$userPath"
+}
+
 $cloudflaredCmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+if (-not $cloudflaredCmd) {
+    if (Test-Path 'C:\Program Files (x86)\cloudflared\cloudflared.exe') {
+        $cloudflaredCmd = Get-Item 'C:\Program Files (x86)\cloudflared\cloudflared.exe'
+    } elseif (Test-Path 'C:\Program Files\cloudflared\cloudflared.exe') {
+        $cloudflaredCmd = Get-Item 'C:\Program Files\cloudflared\cloudflared.exe'
+    }
+}
 
 if ($cloudflaredCmd) {
-    $cfPath = $cloudflaredCmd.Source
+    $cfPath = if ($cloudflaredCmd.Source) { $cloudflaredCmd.Source } else { $cloudflaredCmd.FullName }
     try {
-        $cfVer = (& cloudflared --version) -join ' '
+        $cfVer = (& "$cfPath" --version) -join ' '
         Record-Check 'cloudflared CLI Binary' 'PASS' "Installed at $cfPath"
         Record-Check 'cloudflared Version' 'PASS' "$cfVer"
         Write-Host "  [OK] cloudflared installed: $cfPath" -ForegroundColor Green
