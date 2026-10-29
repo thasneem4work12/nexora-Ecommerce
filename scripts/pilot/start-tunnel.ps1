@@ -163,6 +163,8 @@ try {
         throw "Acquired URL '$allocatedUrl' does not match strict trycloudflare.com hostname policy."
     }
     Write-Host "  [OK] Acquired ephemeral tunnel URL: $allocatedUrl" -ForegroundColor Green
+    $urlFile = Join-Path $PSScriptRoot '.tunnel.url'
+    Set-Content -Path $urlFile -Value $allocatedUrl
 
     # 11. Register Exact Hostname Safely
     Write-Host '[11/15] Registering approved hostname in staging environment...' -ForegroundColor Cyan
@@ -252,6 +254,11 @@ try {
 
     if (Test-Path $tunnelPidFile) {
         Remove-Item $tunnelPidFile -Force -ErrorAction SilentlyContinue
+    }
+
+    $urlFile = Join-Path $PSScriptRoot '.tunnel.url'
+    if (Test-Path $urlFile) {
+        Remove-Item $urlFile -Force -ErrorAction SilentlyContinue
     }
 
     Write-Host 'Tunnel shutdown complete. System is completely sealed.' -ForegroundColor Green

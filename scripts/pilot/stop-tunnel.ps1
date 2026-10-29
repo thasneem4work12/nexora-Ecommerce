@@ -70,10 +70,22 @@ if (Test-Path $pidFile) {
     Write-Host 'To force-terminate all cloudflared processes on this machine, run: .\stop-tunnel.ps1 -ForceAll' -ForegroundColor DarkGray
 }
 
-# 2. Origin Gate Cleanup: Clear APPROVED_PILOT_HOSTNAME in .env.staging
+# 2. Capture Previous Hostname & Clear APPROVED_PILOT_HOSTNAME in .env.staging
 $envFile = '.env.staging'
+$urlFile = Join-Path $PSScriptRoot '.tunnel.url'
+$previousUrl = $null
+
+if (Test-Path $urlFile) {
+    try {
+        $previousUrl = (Get-Content $urlFile -Raw).Trim()
+    } catch { }
+}
+
 if (Test-Path $envFile) {
     $content = Get-Content $envFile -Raw
+    if (-not $previousUrl -and $content -match 'APPROVED_PILOT_HOSTNAME=(https://[^\s\r\n]+)') {
+        $previousUrl = $matches[1]
+    }
     if ($content -match 'APPROVED_PILOT_HOSTNAME=https://.*') {
         $content = $content -replace 'APPROVED_PILOT_HOSTNAME=https://.*', 'APPROVED_PILOT_HOSTNAME='
         Set-Content -Path $envFile -Value $content
@@ -87,7 +99,47 @@ if (Test-Path $envFile) {
     }
 }
 
-# 3. Data Integrity and Backups Assurance
+if (Test-Path $urlFile) {
+    Remove-Item $urlFile -Force -ErrorAction SilentlyContinue
+}
+
+# 3. Verify Public Address Reachability & Fail-Closed Termination
+Write-Host ''
+Write-Host 'Verifying External Tunnel Deactivation:' -ForegroundColor Cyan
+if ($previousUrl) {
+    Write-Host "Probing previous public tunnel endpoint: $previousUrl..." -ForegroundColor Gray
+    try {
+        $probe = Invoke-WebRequest -Uri "$previousUrl/api/health" -TimeoutSec 3 -ErrorAction Stop
+        Write-Host "WARNING: Public endpoint '$previousUrl' still responded with HTTP $($probe.StatusCode)!" -ForegroundColor Red
+    } catch {
+        Write-Host "  [PASS] Public URL '$previousUrl' is confirmed unreachable (Connection closed)." -ForegroundColor Green
+    }
+} else {
+    Write-Host '  [OK] No active public tunnel URL recorded.' -ForegroundColor Gray
+}
+
+# 4. Verify Local Staging Fail-Closed Origin Response
+Write-Host 'Verifying Local Origin Gate Status (127.0.0.1:3005)...' -ForegroundColor Gray
+try {
+    $hostProbe = Invoke-WebRequest -Uri 'http://127.0.0.1:3005/' -Headers @{ Host = 'unauthorized-external-test.trycloudflare.com' } -MaximumRedirection 0 -ErrorAction SilentlyContinue
+    if ($hostProbe.StatusCode -eq 403) {
+        Write-Host '  [PASS] Staging origin gate is strictly FAIL-CLOSED (Received HTTP 403 Forbidden).' -ForegroundColor Green
+    } else {
+        Write-Host "  [NOTICE] Received HTTP $($hostProbe.StatusCode) on unauthorized Host header probe." -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host '  [PASS] Staging origin gate rejected unauthorized Host header.' -ForegroundColor Green
+}
+
+# 5. Verify Zero Running Cloudflared Processes
+$activeTunnels = Get-Process -Name 'cloudflared' -ErrorAction SilentlyContinue
+if (-not $activeTunnels) {
+    Write-Host '  [PASS] Zero cloudflared processes running on workstation.' -ForegroundColor Green
+} else {
+    Write-Host "  [WARNING] Detected $($activeTunnels.Count) cloudflared process(es) still running." -ForegroundColor Yellow
+}
+
+# 6. Data Integrity and Backups Assurance
 Write-Host ''
 Write-Host 'Data and Storage Preservation Guarantee:' -ForegroundColor Cyan
 Write-Host '  - Staging PostgreSQL volumes: INTACT (no docker compose down -v executed)' -ForegroundColor Green

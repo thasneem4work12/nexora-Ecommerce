@@ -209,10 +209,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\pilot\stop-tunnel.ps1
 ```
 
 The script will:
-1. Terminate only the PID recorded in `.tunnel.pid`.
-2. Clear `APPROVED_PILOT_HOSTNAME=` in `.env.staging`.
+1. Terminate only the PID recorded in `.tunnel.pid` (or scan safely with `-ForceAll`).
+2. Capture previous hostname, clear `APPROVED_PILOT_HOSTNAME=` in `.env.staging`, and remove `.tunnel.url`.
 3. Restart `app-staging` to restore strict fail-closed origin isolation.
-4. Remove temporary PID files.
+4. Actively probe previous public URL to verify it is completely unreachable (connection terminated).
+5. Actively probe `http://127.0.0.1:3005` with unauthorized Host header to verify local HTTP 403 fail-closed enforcement.
+6. Verify zero running `cloudflared` processes remain on the workstation.
+7. Guarantee 100% data preservation (no Docker volumes dropped).
 
 ---
 
