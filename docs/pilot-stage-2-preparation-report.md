@@ -12,21 +12,21 @@
 
 | Area | Status | Verification Summary |
 | :--- | :--- | :--- |
-| **Git & Architecture Baseline** | **VERIFIED (PASS)** | Clean working tree on `pilot/zero-cost-prep`, commit baseline verified, 68 routes intact |
+| **Git & Architecture Baseline** | **VERIFIED (PASS)** | Clean working tree on `pilot/zero-cost-prep` at commit `bb7b590`, 68 routes intact |
 | **Hosting Budget Compliance** | **VERIFIED (PASS)** | **LKR 0.00 / $0.00** incurred; 100% existing hardware and zero-cost tooling |
 | **Cloudflared Installation** | **VERIFIED (PASS)** | Official Cloudflare binary v2026.10.5 confirmed at `C:\Program Files (x86)\cloudflared\cloudflared.exe` |
 | **Staging Container Isolation** | **VERIFIED (PASS)** | 3/3 healthy Docker containers; Web `127.0.0.1:3005`, PostgreSQL `127.0.0.1:5433`, Dev DB `5432` untouched |
 | **Tunnel Startup Sequence** | **VERIFIED (PASS)** | 15-step sequence verified with strict syntax checks and fail-closed pre-approval window |
 | **Better Auth & Cookie Security** | **VERIFIED (PASS)** | Dynamic `baseURL`, exact origin whitelist, `HttpOnly`, `SameSite=Lax`, `Secure` when HTTPS |
 | **Perimeter Protection Matrix** | **VERIFIED (PASS)** | 4-tier perimeter model with Edge Middleware fail-closed host matching and single-use gate |
-| **Owner-Only Test Data** | **VERIFIED (PASS)** | Specifications prepared for 1 single-use invitation (2h expiry), synthetic accounts, zero real PII |
-| **Automated Test Suite** | **VERIFIED (PASS)** | Playwright suite `e2e/pilot-external-connectivity.spec.ts` created covering all 20 test points |
-| **Emergency Shutdown System** | **VERIFIED (PASS)** | `stop-tunnel.ps1` PID targeting, origin reset, container reload, zero volume deletion verified |
+| **Owner-Only Test Data** | **VERIFIED (PASS)** | 192 users 100% synthetic; sanitized address phones; zero real customer records or PII |
+| **Automated Test Suite** | **VERIFIED (PASS)** | Playwright suite `e2e/pilot-external-connectivity.spec.ts`: **20/20 test points passing (100%)** |
+| **Emergency Shutdown System** | **VERIFIED (PASS)** | `stop-tunnel.ps1` PID targeting, critical failure on unwritable env, mock test 3/3 PASS |
 | **Network Exposure Audit** | **VERIFIED (PASS)** | Loopback-only binding verified; zero 0.0.0.0 exposure; outbound TLS tunnel architecture |
 | **Observability & Diagnostics** | **VERIFIED (PASS)** | Structured logging, real-time container log monitoring, audit trails in PostgreSQL |
 | **Supervised Test Runbook** | **VERIFIED (PASS)** | `docs/pilot-stage-2-supervised-test-runbook.md` authored with Sections A through O |
 | **Results Reporting Template** | **VERIFIED (PASS)** | `docs/pilot-stage-2-test-results-template.md` authored with all 20 points set to NOT TESTED |
-| **Unit & Integration Suite** | **VERIFIED (PASS)** | Vitest: 269/269 passing (25 test files); fail-closed harness 100% passing |
+| **Unit & Integration Suite** | **VERIFIED (PASS)** | Vitest: 269/269 passing; Fail-closed audit: 4/4 passing; Mock shutdown test: 3/3 passing |
 
 ---
 
