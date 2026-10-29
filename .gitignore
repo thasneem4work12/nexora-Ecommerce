@@ -44,3 +44,6 @@ next-env.d.ts
 # build bundles
 /dist/
 
+# pid files
+*.pid
+

@@ -69,9 +69,12 @@ $psi.CreateNoWindow = $true
 $tunnelProcess = New-Object System.Diagnostics.Process
 $tunnelProcess.StartInfo = $psi
 
+$tunnelPidFile = "$PSScriptRoot\.tunnel.pid"
+
 try {
     $tunnelProcess.Start() | Out-Null
-    Write-Host "Waiting for Cloudflare edge to allocate temporary hostname..." -ForegroundColor Gray
+    Set-Content -Path $tunnelPidFile -Value $tunnelProcess.Id -Force
+    Write-Host "Waiting for Cloudflare edge to allocate temporary hostname (PID: $($tunnelProcess.Id))..." -ForegroundColor Gray
 
     $allocatedUrl = $null
     $timeoutSeconds = 30
@@ -173,6 +176,10 @@ try {
 
     if (Test-Path $tunnelLog) {
         Remove-Item $tunnelLog -Force -ErrorAction SilentlyContinue
+    }
+
+    if (Test-Path $tunnelPidFile) {
+        Remove-Item $tunnelPidFile -Force -ErrorAction SilentlyContinue
     }
 
     Write-Host "Tunnel shutdown complete. System is completely sealed." -ForegroundColor Green
