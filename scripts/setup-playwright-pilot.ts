@@ -1,3 +1,7 @@
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("5432")) {
+  process.env.DATABASE_URL = "postgresql://nexora_staging:nexora_staging_pass@localhost:5433/nexora_staging_db?schema=public";
+}
+
 import { prisma } from "../src/lib/prisma";
 import { createPilotInvitation } from "../src/services/pilot-access.service";
 import fs from "fs";

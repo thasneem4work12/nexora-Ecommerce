@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { getPlatformOverviewMetrics } from "@/services/saas/platform-admin.service";
+import { GuidedTourTrigger } from "@/components/guidance/GuidedTourTrigger";
 import {
   DollarSign,
   TrendingUp,
@@ -30,25 +31,31 @@ export default async function PlatformOverviewPage() {
   return (
     <div className="space-y-8">
       {/* Platform Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-4">
         <div>
-          <h1 className="font-serif text-3xl text-charcoal-900 tracking-tight">Platform Control Center</h1>
-          <p className="text-sm text-charcoal-600 mt-1">
+          <span className="text-xs uppercase tracking-luxury text-bronze font-semibold">
+            Superadmin Infrastructure
+          </span>
+          <h1 className="font-serif text-3xl text-charcoal-900 tracking-tight mt-1">Platform Control Center</h1>
+          <p className="text-xs text-charcoal-500 mt-1 font-light">
             Global SaaS subscription revenue, multi-tenant fleet health, and system-wide plan distribution.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center flex-wrap gap-3">
+          <GuidedTourTrigger tourId="platform-superadmin" label="Tour Platform" />
           <Link
             href="/platform/businesses"
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-[#EAE5D9] text-charcoal-800 hover:bg-zinc-50 shadow-sm flex items-center gap-2"
+            data-tour="platform-tenants-btn"
+            className="px-4 py-2 rounded-btn text-xs font-semibold bg-canvas-surface border border-border-default text-charcoal-800 hover:bg-canvas-secondary shadow-xs flex items-center gap-2"
           >
             <Building2 className="w-3.5 h-3.5 text-bronze" />
             <span>Manage Tenants</span>
           </Link>
           <Link
             href="/platform/plans"
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-charcoal-900 hover:bg-black text-white shadow-sm flex items-center gap-2"
+            data-tour="platform-plans-btn"
+            className="px-4 py-2 rounded-btn text-xs font-semibold bg-charcoal-900 hover:bg-black text-white shadow-xs flex items-center gap-2"
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>Manage Plans</span>
@@ -59,7 +66,7 @@ export default async function PlatformOverviewPage() {
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* MRR Card */}
-        <div className="p-6 rounded-2xl bg-white border border-[#EAE5D9] shadow-sm">
+        <div data-tour="platform-mrr" className="p-6 rounded-card bg-canvas-surface border border-border-default shadow-xs">
           <div className="flex items-center justify-between text-charcoal-500 mb-2">
             <span className="text-xs uppercase font-semibold tracking-wider">Monthly Recurring Revenue</span>
             <DollarSign className="w-4 h-4 text-emerald-600" />
@@ -67,14 +74,14 @@ export default async function PlatformOverviewPage() {
           <div className="font-serif text-3xl font-bold text-charcoal-900">
             ${(metrics.mrrInCents / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </div>
-          <div className="text-[11px] text-charcoal-500 mt-1 flex items-center gap-1">
+          <div className="text-[11px] text-charcoal-500 mt-1 flex items-center gap-1 font-light">
             <TrendingUp className="w-3 h-3 text-emerald-600" />
             <span>ARR Run Rate: ${(metrics.arrInCents / 100).toLocaleString("en-US")}</span>
           </div>
         </div>
 
         {/* Total Invoiced Revenue */}
-        <div className="p-6 rounded-2xl bg-white border border-[#EAE5D9] shadow-sm">
+        <div className="p-6 rounded-card bg-canvas-surface border border-border-default shadow-xs">
           <div className="flex items-center justify-between text-charcoal-500 mb-2">
             <span className="text-xs uppercase font-semibold tracking-wider">Paid SaaS Revenue</span>
             <DollarSign className="w-4 h-4 text-bronze" />
@@ -88,7 +95,7 @@ export default async function PlatformOverviewPage() {
         </div>
 
         {/* Active Businesses */}
-        <div className="p-6 rounded-2xl bg-white border border-[#EAE5D9] shadow-sm">
+        <div className="p-6 rounded-card bg-canvas-surface border border-border-default shadow-xs">
           <div className="flex items-center justify-between text-charcoal-500 mb-2">
             <span className="text-xs uppercase font-semibold tracking-wider">Active Businesses</span>
             <Building2 className="w-4 h-4 text-emerald-600" />
@@ -102,7 +109,7 @@ export default async function PlatformOverviewPage() {
         </div>
 
         {/* Suspended Fleet */}
-        <div className="p-6 rounded-2xl bg-white border border-[#EAE5D9] shadow-sm">
+        <div className="p-6 rounded-card bg-canvas-surface border border-border-default shadow-xs">
           <div className="flex items-center justify-between text-charcoal-500 mb-2">
             <span className="text-xs uppercase font-semibold tracking-wider">Suspended Tenants</span>
             <AlertTriangle className="w-4 h-4 text-red-500" />

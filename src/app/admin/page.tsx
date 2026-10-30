@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { requireAdminPageSession } from "@/lib/admin-auth";
 import { Button } from "@/components/ui/Button";
+import { GuidedTourTrigger } from "@/components/guidance/GuidedTourTrigger";
 
 export default async function AdminDashboardPage() {
   const { businessId } = await requireAdminPageSession("VIEW_ADMIN");
@@ -29,7 +30,10 @@ export default async function AdminDashboardPage() {
   return (
     <div className="space-y-10">
       {/* Header & Quick Action Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-6">
+      <div
+        data-tour="dashboard-header"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-6"
+      >
         <div>
           <span className="text-xs uppercase tracking-luxury text-bronze font-semibold">
             Atelier Command Center
@@ -42,7 +46,8 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div data-tour="dashboard-quick-actions" className="flex items-center flex-wrap gap-3">
+          <GuidedTourTrigger tourId="owner-dashboard" label="Tour Dashboard" />
           <Link href="/admin/orders">
             <Button variant="outline" size="sm">
               <ShoppingBag className="w-4 h-4 mr-2" /> Orders ({orderMetrics.totalOrders})
@@ -62,7 +67,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div data-tour="dashboard-metrics" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Gross Revenue */}
         <div className="bg-canvas-surface p-5 border border-border-default space-y-2">
           <div className="flex items-center justify-between text-charcoal-500">

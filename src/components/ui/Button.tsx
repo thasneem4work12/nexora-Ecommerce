@@ -14,6 +14,8 @@ const buttonVariants = cva(
           "bg-canvas-secondary text-charcoal-900 border border-border-default hover:bg-canvas-primary active:scale-[0.99]",
         charcoal:
           "bg-charcoal-900 text-canvas-primary hover:bg-black shadow-sm active:scale-[0.99]",
+        destructive:
+          "bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow active:scale-[0.99] focus-visible:ring-rose-500",
         outline:
           "border border-border-strong text-charcoal-900 hover:border-bronze hover:text-bronze bg-transparent",
         ghost:

@@ -15,6 +15,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ProductLiveCardPreview } from "./ProductLiveCardPreview";
+import { GuidedTourTrigger } from "@/components/guidance/GuidedTourTrigger";
 
 interface VariantFormItem {
   id?: string;
@@ -299,10 +301,14 @@ export function ProductForm({
     }
   };
 
+  const activeCategory = categories.find((c) => c.id === categoryId)?.name || "Atelier Collection";
+  const primaryImageUrl = images[0]?.url || imageUrlInput;
+  const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-7xl">
       {/* Back button & Title */}
-      <div className="flex items-center justify-between border-b border-border-default pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-4">
         <div>
           <Link
             href="/admin/products"
@@ -315,7 +321,8 @@ export function ProductForm({
           </h1>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center flex-wrap gap-3">
+          <GuidedTourTrigger tourId="product-form" label="Tour Product Form" />
           <Link href="/admin/products">
             <Button variant="outline" size="sm" type="button">
               Cancel
@@ -341,8 +348,12 @@ export function ProductForm({
         </div>
       )}
 
-      {/* Section 1: General Attributes */}
-      <div className="bg-canvas-surface border border-border-default p-6 space-y-6">
+      {/* Split Layout: Form & Live Card Preview */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Form Fields */}
+        <div className="lg:col-span-8 space-y-8">
+          {/* Section 1: General Attributes */}
+          <div data-tour="product-basics" className="bg-canvas-surface border border-border-default p-6 space-y-6">
         <h2 className="text-sm uppercase tracking-luxury text-charcoal-900 font-semibold border-b border-border-subtle pb-3">
           1. General Atelier Information
         </h2>
@@ -408,7 +419,7 @@ export function ProductForm({
           </div>
 
           {/* Base Price */}
-          <div>
+          <div data-tour="product-pricing">
             <label
               htmlFor="basePrice"
               className="block text-xs uppercase tracking-luxury text-charcoal-700 font-medium mb-1"
@@ -474,7 +485,7 @@ export function ProductForm({
       </div>
 
       {/* Section 2: Visual Gallery Management */}
-      <div className="bg-canvas-surface border border-border-default p-6 space-y-6">
+      <div data-tour="product-media" className="bg-canvas-surface border border-border-default p-6 space-y-6">
         <h2 className="text-sm uppercase tracking-luxury text-charcoal-900 font-semibold border-b border-border-subtle pb-3">
           2. Imagery & Atelier Photographs
         </h2>
@@ -567,7 +578,7 @@ export function ProductForm({
       </div>
 
       {/* Section 3: Variants & Inventory */}
-      <div className="bg-canvas-surface border border-border-default p-6 space-y-6">
+      <div data-tour="product-variants" className="bg-canvas-surface border border-border-default p-6 space-y-6">
         <div className="flex items-center justify-between border-b border-border-subtle pb-3">
           <div>
             <h2 className="text-sm uppercase tracking-luxury text-charcoal-900 font-semibold">
@@ -720,6 +731,21 @@ export function ProductForm({
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    {/* Right Column: Sticky Live Storefront Card Preview */}
+        <div className="lg:col-span-4 sticky top-6">
+          <ProductLiveCardPreview
+            title={title}
+            categoryName={activeCategory}
+            basePrice={basePrice}
+            primaryImageUrl={primaryImageUrl}
+            featured={featured}
+            totalStock={totalStock}
+            hasVariants={variants.length > 0}
+          />
         </div>
       </div>
 

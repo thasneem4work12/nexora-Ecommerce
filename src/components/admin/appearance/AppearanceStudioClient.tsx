@@ -20,6 +20,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { ThemeMockupCard } from "./ThemeMockupCard";
+import { GuidedTourTrigger } from "@/components/guidance/GuidedTourTrigger";
 import type {
   StoreAppearanceConfig,
   ThemeDefinition,
@@ -46,7 +49,12 @@ export function AppearanceStudioClient({
   // Working state
   const [activeTab, setActiveTab] = useState<"themes" | "branding" | "homepage" | "preview">("themes");
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [previewPath, setPreviewPath] = useState<string>("/");
   const [previewKey, setPreviewKey] = useState(0);
+
+  // Quick preview modal state
+  const [previewModalTheme, setPreviewModalTheme] = useState<ThemeId | null>(null);
+  const [modalViewport, setModalViewport] = useState<"desktop" | "tablet" | "mobile">("desktop");
 
   // Form states
   const [activeThemeId, setActiveThemeId] = useState<ThemeId>(
@@ -349,6 +357,8 @@ export function AppearanceStudioClient({
 
         {/* Global Action Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          <GuidedTourTrigger tourId="theme-studio" label="Tour Theme Studio" />
+
           {hasDraft && (
             <Button
               variant="outline"
@@ -417,16 +427,17 @@ export function AppearanceStudioClient({
       {/* Navigation Tabs */}
       <div className="flex border-b border-border-default space-x-1 sm:space-x-4">
         {[
-          { id: "themes", label: "Theme Presets (4)", icon: Palette },
-          { id: "branding", label: "Branding & Palette", icon: Sliders },
-          { id: "homepage", label: "Homepage Sections", icon: Layout },
-          { id: "preview", label: "Live Responsive Preview", icon: Eye },
+          { id: "themes", label: "Theme Presets (4)", icon: Palette, tour: "theme-card-selection" },
+          { id: "branding", label: "Branding & Palette", icon: Sliders, tour: "theme-branding-options" },
+          { id: "homepage", label: "Homepage Sections", icon: Layout, tour: "theme-homepage-sections" },
+          { id: "preview", label: "Live Responsive Preview", icon: Eye, tour: "theme-live-preview" },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              data-tour={tab.tour}
               onClick={() => setActiveTab(tab.id as "themes" | "branding" | "homepage" | "preview")}
               className={`flex items-center space-x-2 py-3 px-3 sm:px-4 text-xs uppercase tracking-luxury font-medium border-b-2 transition-colors ${
                 isActive
@@ -473,115 +484,108 @@ export function AppearanceStudioClient({
                 <div
                   key={theme.id}
                   data-testid={`theme-card-${theme.id}`}
-                  className={`bg-canvas-surface rounded-card border transition-all p-6 flex flex-col justify-between space-y-5 ${
+                  className={`bg-canvas-surface rounded-card border transition-all overflow-hidden flex flex-col justify-between group ${
                     isSelected
                       ? "border-bronze shadow-md ring-1 ring-bronze/40"
-                      : "border-border-default hover:border-border-strong"
+                      : "border-border-default hover:border-border-strong hover:shadow-xs"
                   }`}
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-lg font-serif text-charcoal-900">
-                            {theme.name}
-                          </h3>
-                          {isLive && (
-                            <span className="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider">
-                              Live
-                            </span>
-                          )}
-                          {isSelected && !isLive && (
-                            <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider">
-                              Draft Selected
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-charcoal-500 italic mt-0.5">
-                          {theme.tagline}
-                        </p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-charcoal-700 leading-relaxed font-light">
-                      {theme.description}
-                    </p>
-
-                    {/* Color Swatches */}
-                    <div>
-                      <span className="text-[10px] uppercase tracking-luxury text-charcoal-500 block mb-1.5 font-medium">
-                        Core Palette
-                      </span>
-                      <div className="flex items-center space-x-2">
-                        <div
-                          className="w-7 h-7 rounded border border-border-default shadow-xs flex items-center justify-center text-[9px] font-bold"
-                          style={{ backgroundColor: theme.palette.canvasPrimary, color: theme.palette.textPrimary }}
-                          title={`Canvas: ${theme.palette.canvasPrimary}`}
-                        >
-                          Bg
-                        </div>
-                        <div
-                          className="w-7 h-7 rounded border border-border-default shadow-xs flex items-center justify-center text-[9px] font-bold"
-                          style={{ backgroundColor: theme.palette.canvasSurface, color: theme.palette.textPrimary }}
-                          title={`Surface: ${theme.palette.canvasSurface}`}
-                        >
-                          Sf
-                        </div>
-                        <div
-                          className="w-7 h-7 rounded border border-border-default shadow-xs flex items-center justify-center text-[9px] font-bold text-white"
-                          style={{ backgroundColor: theme.palette.accentPrimary }}
-                          title={`Accent: ${theme.palette.accentPrimary}`}
-                        >
-                          Ac
-                        </div>
-                        <div
-                          className="w-7 h-7 rounded border border-border-default shadow-xs flex items-center justify-center text-[9px] font-bold"
-                          style={{ backgroundColor: theme.palette.textPrimary, color: theme.palette.canvasPrimary }}
-                          title={`Text: ${theme.palette.textPrimary}`}
-                        >
-                          Tx
-                        </div>
-                        <span className="text-[11px] text-charcoal-500 font-mono ml-2">
-                          {theme.palette.accentPrimary}
+                  {/* Visual Miniature Storefront Mockup */}
+                  <div className="relative">
+                    <ThemeMockupCard themeId={theme.id} />
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                      {isLive && (
+                        <span className="bg-emerald-600/90 text-white text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider backdrop-blur-sm shadow-xs">
+                          Live Storefront
                         </span>
-                      </div>
-                    </div>
-
-                    {/* Design Specs */}
-                    <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-charcoal-500">
-                      <span className="bg-canvas-secondary px-2 py-0.5 rounded border border-border-subtle">
-                        Font: {theme.typography.headingFont}
-                      </span>
-                      <span className="bg-canvas-secondary px-2 py-0.5 rounded border border-border-subtle">
-                        Radius: {theme.borders.cardRadius}
-                      </span>
-                      <span className="bg-canvas-secondary px-2 py-0.5 rounded border border-border-subtle">
-                        Card: {theme.productCard.style}
-                      </span>
+                      )}
+                      {isSelected && !isLive && (
+                        <span className="bg-bronze text-white text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider shadow-xs">
+                          Draft Active
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-border-subtle flex items-center justify-between">
-                    <Button
-                      variant={isSelected ? "primary" : "outline"}
-                      size="sm"
-                      onClick={() => handleSelectTheme(theme.id)}
-                      disabled={!canManage}
-                      className="text-xs"
-                    >
-                      {isSelected ? "Selected in Studio" : "Select Theme for Draft"}
-                    </Button>
+                  {/* Card Content & Design Specs */}
+                  <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-base font-serif font-bold text-charcoal-900 group-hover:text-bronze transition-colors">
+                          {theme.name}
+                        </h3>
+                        <span className="text-[10px] text-charcoal-400 font-mono">
+                          {theme.typography.headingFont.split(",")[0]}
+                        </span>
+                      </div>
+                      <p className="text-xs text-charcoal-600 font-light leading-relaxed">
+                        {theme.tagline} — {theme.description}
+                      </p>
+                    </div>
 
-                    <button
-                      onClick={() => {
-                        setActiveThemeId(theme.id);
-                        setActiveTab("preview");
-                      }}
-                      className="text-xs text-charcoal-700 hover:text-bronze flex items-center space-x-1"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Preview in Studio</span>
-                    </button>
+                    {/* Core Palette Swatches */}
+                    <div className="pt-2 border-t border-border-subtle flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-luxury text-charcoal-400 font-medium">
+                          Palette:
+                        </span>
+                        <div className="flex items-center space-x-1.5">
+                          <div
+                            className="w-5 h-5 rounded-full border border-border-default shadow-2xs"
+                            style={{ backgroundColor: theme.palette.canvasPrimary }}
+                            title={`Background: ${theme.palette.canvasPrimary}`}
+                          />
+                          <div
+                            className="w-5 h-5 rounded-full border border-border-default shadow-2xs"
+                            style={{ backgroundColor: theme.palette.canvasSurface }}
+                            title={`Surface: ${theme.palette.canvasSurface}`}
+                          />
+                          <div
+                            className="w-5 h-5 rounded-full border border-border-default shadow-2xs"
+                            style={{ backgroundColor: theme.palette.accentPrimary }}
+                            title={`Accent: ${theme.palette.accentPrimary}`}
+                          />
+                          <div
+                            className="w-5 h-5 rounded-full border border-border-default shadow-2xs"
+                            style={{ backgroundColor: theme.palette.textPrimary }}
+                            title={`Text: ${theme.palette.textPrimary}`}
+                          />
+                        </div>
+                      </div>
+
+                      <span className="text-[11px] text-charcoal-400 font-mono">
+                        Radius {theme.borders.cardRadius}
+                      </span>
+                    </div>
+
+                    {/* Dual Action Buttons */}
+                    <div className="pt-3 border-t border-border-subtle flex items-center gap-3">
+                      <Button
+                        variant={isSelected ? "secondary" : "primary"}
+                        size="sm"
+                        onClick={() => handleSelectTheme(theme.id)}
+                        disabled={!canManage}
+                        className="flex-1 text-xs"
+                      >
+                        {isSelected ? (
+                          <span className="flex items-center justify-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Current Theme
+                          </span>
+                        ) : (
+                          "Use Theme"
+                        )}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewModalTheme(theme.id)}
+                        className="flex-1 text-xs text-charcoal-700 hover:text-bronze flex items-center justify-center gap-1.5"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Preview Theme</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -868,7 +872,7 @@ export function AppearanceStudioClient({
       {activeTab === "preview" && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-canvas-surface p-4 rounded-card border border-border-default">
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="text-xs uppercase tracking-luxury text-charcoal-700 font-semibold">
                 Viewport:
               </span>
@@ -904,6 +908,32 @@ export function AppearanceStudioClient({
                   <span className="hidden sm:inline">Mobile</span>
                 </button>
               </div>
+
+              {/* Route Selector */}
+              <div className="flex items-center gap-1 border-l border-border-default pl-3">
+                <span className="text-xs uppercase tracking-luxury text-charcoal-700 font-semibold mr-1">
+                  Page:
+                </span>
+                {[
+                  { label: "Homepage", path: "/" },
+                  { label: "Catalog", path: "/products" },
+                ].map((p) => (
+                  <button
+                    key={p.path}
+                    onClick={() => {
+                      setPreviewPath(p.path);
+                      setPreviewKey((k) => k + 1);
+                    }}
+                    className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                      previewPath === p.path
+                        ? "bg-bronze text-white font-medium"
+                        : "text-charcoal-600 hover:bg-canvas-secondary"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -918,7 +948,7 @@ export function AppearanceStudioClient({
               </Button>
 
               <a
-                href={`/?previewTheme=${activeThemeId}&previewDraft=true`}
+                href={`${previewPath}${previewPath.includes("?") ? "&" : "?"}previewTheme=${activeThemeId}&previewDraft=true`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-charcoal-700 hover:text-bronze flex items-center space-x-1 font-medium"
@@ -942,13 +972,124 @@ export function AppearanceStudioClient({
             >
               <iframe
                 key={previewKey}
-                src={`/?previewTheme=${activeThemeId}&previewDraft=true`}
+                src={`${previewPath}${previewPath.includes("?") ? "&" : "?"}previewTheme=${activeThemeId}&previewDraft=true`}
                 title="Storefront Live Preview"
                 className="w-full h-full border-0"
               />
             </div>
           </div>
         </div>
+      )}
+
+      {/* Quick Preview Modal for Theme Selection */}
+      {previewModalTheme && (
+        <Modal
+          isOpen={Boolean(previewModalTheme)}
+          onClose={() => setPreviewModalTheme(null)}
+          title={`Previewing ${themes.find((t) => t.id === previewModalTheme)?.name || "Theme"}`}
+          description="Interactive multi-device preview with live storefront content."
+          size="full"
+        >
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-canvas-secondary/60 rounded-card border border-border-subtle">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs uppercase tracking-luxury text-charcoal-700 font-semibold">
+                  Device:
+                </span>
+                <div className="flex space-x-1 border border-border-default rounded p-0.5 bg-canvas-surface">
+                  <button
+                    onClick={() => setModalViewport("desktop")}
+                    className={`p-1.5 rounded text-xs flex items-center space-x-1 ${
+                      modalViewport === "desktop" ? "bg-charcoal-900 text-white" : "text-charcoal-500 hover:text-charcoal-900"
+                    }`}
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>Desktop</span>
+                  </button>
+                  <button
+                    onClick={() => setModalViewport("tablet")}
+                    className={`p-1.5 rounded text-xs flex items-center space-x-1 ${
+                      modalViewport === "tablet" ? "bg-charcoal-900 text-white" : "text-charcoal-500 hover:text-charcoal-900"
+                    }`}
+                  >
+                    <Tablet className="w-3.5 h-3.5" />
+                    <span>Tablet</span>
+                  </button>
+                  <button
+                    onClick={() => setModalViewport("mobile")}
+                    className={`p-1.5 rounded text-xs flex items-center space-x-1 ${
+                      modalViewport === "mobile" ? "bg-charcoal-900 text-white" : "text-charcoal-500 hover:text-charcoal-900"
+                    }`}
+                  >
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>Mobile</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1 border-l border-border-default pl-3">
+                  <span className="text-xs uppercase tracking-luxury text-charcoal-700 font-semibold mr-1">
+                    Page:
+                  </span>
+                  {[
+                    { label: "Home", path: "/" },
+                    { label: "Catalog", path: "/products" },
+                  ].map((p) => (
+                    <button
+                      key={p.path}
+                      onClick={() => setPreviewPath(p.path)}
+                      className={`px-2.5 py-1 rounded text-xs transition-colors ${
+                        previewPath === p.path
+                          ? "bg-bronze text-white font-medium"
+                          : "text-charcoal-600 hover:bg-canvas-surface"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewModalTheme(null)}
+                >
+                  Close
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    handleSelectTheme(previewModalTheme);
+                    setPreviewModalTheme(null);
+                  }}
+                  disabled={!canManage}
+                >
+                  Use This Theme
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-charcoal-950 p-4 rounded-card flex justify-center overflow-x-auto min-h-[600px] shadow-inner">
+              <div
+                className={`transition-all duration-300 bg-white rounded shadow-2xl overflow-hidden ${
+                  modalViewport === "desktop"
+                    ? "w-full h-[650px]"
+                    : modalViewport === "tablet"
+                    ? "w-[768px] h-[650px]"
+                    : "w-[375px] h-[600px]"
+                }`}
+              >
+                <iframe
+                  src={`${previewPath}${previewPath.includes("?") ? "&" : "?"}previewTheme=${previewModalTheme}&previewDraft=true`}
+                  title="Theme Preview Modal Frame"
+                  className="w-full h-full border-0"
+                />
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

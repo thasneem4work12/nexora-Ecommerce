@@ -4,6 +4,7 @@ import { requireAdminPageSession } from "@/lib/admin-auth";
 import { getAdminOrders, getAdminOrderMetrics } from "@/services/admin-order.service";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { GuidedTourTrigger } from "@/components/guidance/GuidedTourTrigger";
 import type { OrderStatus, PaymentStatus } from "@prisma/client";
 import {
   ShoppingBag,
@@ -54,128 +55,137 @@ export default async function AdminOrdersPage({
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-serif text-charcoal-900">
-          Orders & Client Commissions
-        </h1>
-        <p className="text-xs tracking-wider uppercase text-charcoal-700 mt-1">
-          PostgreSQL Transactional Order Processing, Payment Verification & Logistics
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border-default pb-4">
+        <div>
+          <span className="text-xs uppercase tracking-luxury text-bronze font-semibold">
+            Transactional Operations
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-serif text-charcoal-900 mt-1">
+            Orders & Client Commissions
+          </h1>
+          <p className="text-xs text-charcoal-500 mt-1 font-light">
+            Real-time fulfillment pipeline, automated reservations, and financial settlements.
+          </p>
+        </div>
+
+        <div>
+          <GuidedTourTrigger tourId="order-management" label="Tour Orders" />
+        </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white p-5 border border-cream-200 rounded-sm shadow-luxury">
-          <div className="flex items-center justify-between text-charcoal-700 mb-2">
-            <span className="text-[11px] uppercase tracking-wider">Gross Revenue</span>
-            <DollarSign className="w-4 h-4 text-emerald-700" />
+      <div data-tour="orders-metrics" className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-canvas-surface p-5 border border-border-default rounded-card shadow-xs">
+          <div className="flex items-center justify-between text-charcoal-500 mb-2">
+            <span className="text-[11px] uppercase tracking-wider font-medium">Gross Revenue</span>
+            <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-xl font-serif font-medium text-charcoal-900">
+          <div className="text-xl font-serif font-bold text-charcoal-900">
             {formatPrice(metrics.totalRevenueInCents)}
           </div>
         </div>
 
-        <div className="bg-white p-5 border border-cream-200 rounded-sm shadow-luxury">
-          <div className="flex items-center justify-between text-charcoal-700 mb-2">
-            <span className="text-[11px] uppercase tracking-wider">Total Orders</span>
-            <ShoppingBag className="w-4 h-4 text-charcoal-700" />
+        <div className="bg-canvas-surface p-5 border border-border-default rounded-card shadow-xs">
+          <div className="flex items-center justify-between text-charcoal-500 mb-2">
+            <span className="text-[11px] uppercase tracking-wider font-medium">Total Orders</span>
+            <ShoppingBag className="w-4 h-4 text-charcoal-500" />
           </div>
-          <div className="text-xl font-serif font-medium text-charcoal-900">
+          <div className="text-xl font-serif font-bold text-charcoal-900">
             {metrics.totalOrders}
           </div>
         </div>
 
-        <div className="bg-white p-5 border border-cream-200 rounded-sm shadow-luxury">
-          <div className="flex items-center justify-between text-charcoal-700 mb-2">
-            <span className="text-[11px] uppercase tracking-wider">Settled & Paid</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+        <div className="bg-canvas-surface p-5 border border-border-default rounded-card shadow-xs">
+          <div className="flex items-center justify-between text-charcoal-500 mb-2">
+            <span className="text-[11px] uppercase tracking-wider font-medium">Settled & Paid</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-xl font-serif font-medium text-emerald-800">
+          <div className="text-xl font-serif font-bold text-emerald-700">
             {metrics.paidOrders}
           </div>
         </div>
 
-        <div className="bg-white p-5 border border-cream-200 rounded-sm shadow-luxury">
-          <div className="flex items-center justify-between text-charcoal-700 mb-2">
-            <span className="text-[11px] uppercase tracking-wider">Pending Fulfillment</span>
-            <Package className="w-4 h-4 text-amber-700" />
+        <div className="bg-canvas-surface p-5 border border-border-default rounded-card shadow-xs">
+          <div className="flex items-center justify-between text-charcoal-500 mb-2">
+            <span className="text-[11px] uppercase tracking-wider font-medium">Pending Fulfillment</span>
+            <Package className="w-4 h-4 text-amber-600" />
           </div>
-          <div className="text-xl font-serif font-medium text-amber-800">
+          <div className="text-xl font-serif font-bold text-amber-700">
             {metrics.pendingFulfillment}
           </div>
         </div>
 
-        <div className="bg-white p-5 border border-cream-200 rounded-sm shadow-luxury">
-          <div className="flex items-center justify-between text-charcoal-700 mb-2">
-            <span className="text-[11px] uppercase tracking-wider">Dispatched / Shipped</span>
-            <Truck className="w-4 h-4 text-blue-700" />
+        <div className="bg-canvas-surface p-5 border border-border-default rounded-card shadow-xs">
+          <div className="flex items-center justify-between text-charcoal-500 mb-2">
+            <span className="text-[11px] uppercase tracking-wider font-medium">Dispatched</span>
+            <Truck className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="text-xl font-serif font-medium text-blue-800">
+          <div className="text-xl font-serif font-bold text-blue-700">
             {metrics.shippedOrders}
           </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 border border-cream-200 rounded-sm shadow-luxury flex flex-wrap items-center justify-between gap-4">
+      <div data-tour="orders-filters" className="bg-canvas-surface p-4 border border-border-default rounded-card shadow-xs flex flex-wrap items-center justify-between gap-4">
         {/* Status Pills */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <Link
             href="/admin/orders"
-            className={`px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors ${
+            className={`px-3 py-1.5 rounded-btn uppercase tracking-wider transition-colors ${
               !status && !paymentStatus
                 ? "bg-charcoal-900 text-white font-medium"
-                : "bg-cream-100 text-charcoal-700 hover:bg-cream-200"
+                : "bg-canvas-secondary text-charcoal-600 hover:bg-canvas-secondary/80"
             }`}
           >
             All Orders
           </Link>
           <Link
             href="/admin/orders?paymentStatus=PAID"
-            className={`px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors ${
+            className={`px-3 py-1.5 rounded-btn uppercase tracking-wider transition-colors ${
               paymentStatus === "PAID"
                 ? "bg-charcoal-900 text-white font-medium"
-                : "bg-cream-100 text-charcoal-700 hover:bg-cream-200"
+                : "bg-canvas-secondary text-charcoal-600 hover:bg-canvas-secondary/80"
             }`}
           >
             Paid ({metrics.paidOrders})
           </Link>
           <Link
             href="/admin/orders?status=PROCESSING"
-            className={`px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors ${
+            className={`px-3 py-1.5 rounded-btn uppercase tracking-wider transition-colors ${
               status === "PROCESSING"
                 ? "bg-charcoal-900 text-white font-medium"
-                : "bg-cream-100 text-charcoal-700 hover:bg-cream-200"
+                : "bg-canvas-secondary text-charcoal-600 hover:bg-canvas-secondary/80"
             }`}
           >
             Processing
           </Link>
           <Link
             href="/admin/orders?status=SHIPPED"
-            className={`px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors ${
+            className={`px-3 py-1.5 rounded-btn uppercase tracking-wider transition-colors ${
               status === "SHIPPED"
                 ? "bg-charcoal-900 text-white font-medium"
-                : "bg-cream-100 text-charcoal-700 hover:bg-cream-200"
+                : "bg-canvas-secondary text-charcoal-600 hover:bg-canvas-secondary/80"
             }`}
           >
             Shipped
           </Link>
           <Link
             href="/admin/orders?status=PENDING"
-            className={`px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors ${
+            className={`px-3 py-1.5 rounded-btn uppercase tracking-wider transition-colors ${
               status === "PENDING"
                 ? "bg-charcoal-900 text-white font-medium"
-                : "bg-cream-100 text-charcoal-700 hover:bg-cream-200"
+                : "bg-canvas-secondary text-charcoal-600 hover:bg-canvas-secondary/80"
             }`}
           >
             Pending
           </Link>
           <Link
             href="/admin/orders?status=CANCELLED"
-            className={`px-3 py-1.5 rounded-sm uppercase tracking-wider transition-colors ${
+            className={`px-3 py-1.5 rounded-btn uppercase tracking-wider transition-colors ${
               status === "CANCELLED"
                 ? "bg-charcoal-900 text-white font-medium"
-                : "bg-cream-100 text-charcoal-700 hover:bg-cream-200"
+                : "bg-canvas-secondary text-charcoal-600 hover:bg-canvas-secondary/80"
             }`}
           >
             Cancelled
@@ -193,7 +203,7 @@ export default async function AdminOrdersPage({
               name="search"
               defaultValue={search || ""}
               placeholder="Search reference, email, client..."
-              className="pl-9 pr-3 py-1.5 text-xs bg-cream-50 border border-cream-300 rounded-sm focus:outline-none focus:border-charcoal-900 w-64"
+              className="pl-9 pr-3 py-1.5 text-xs bg-canvas-primary border border-border-default rounded-btn focus:outline-none focus:border-bronze w-64 text-charcoal-900"
             />
           </div>
           <Button type="submit" variant="outline" size="sm" className="text-xs uppercase">
@@ -203,15 +213,15 @@ export default async function AdminOrdersPage({
       </div>
 
       {/* Orders Table */}
-      <div className="bg-white border border-cream-200 rounded-sm shadow-luxury overflow-hidden">
+      <div data-tour="orders-table" className="bg-canvas-surface border border-border-default rounded-card shadow-xs overflow-hidden">
         {orders.length === 0 ? (
-          <div className="p-12 text-center text-charcoal-700 text-sm">
+          <div className="p-12 text-center text-charcoal-500 text-sm font-light">
             No orders match the selected filters.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-cream-100/60 border-b border-cream-200 uppercase tracking-wider text-charcoal-700 font-medium">
+              <thead className="bg-canvas-secondary/50 border-b border-border-subtle uppercase tracking-wider text-charcoal-500 font-medium text-[10px]">
                 <tr>
                   <th className="py-3 px-4">Order Ref</th>
                   <th className="py-3 px-4">Date</th>

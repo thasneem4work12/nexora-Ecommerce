@@ -68,6 +68,32 @@ export default function CartPage() {
         </button>
       </div>
 
+      {/* Complimentary Shipping Progress Tracker */}
+      {(() => {
+        const thresholdInCents = 50000; // $500 threshold
+        const progress = Math.min(100, Math.round((cart.subtotalInCents / thresholdInCents) * 100));
+        const remainingInCents = Math.max(0, thresholdInCents - cart.subtotalInCents);
+
+        return (
+          <div className="mb-8 p-4 bg-canvas-surface border border-border-default rounded-card space-y-2 shadow-xs">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-serif font-medium text-charcoal-900">
+                {remainingInCents === 0
+                  ? "✨ You've unlocked Complimentary Insured Delivery!"
+                  : `Add ${formatPrice(remainingInCents)} more for Complimentary Insured Delivery`}
+              </span>
+              <span className="font-mono text-bronze font-semibold">{progress}%</span>
+            </div>
+            <div className="w-full h-2 bg-canvas-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-bronze transition-all duration-500 rounded-full"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         {/* Cart Items List (8 cols) */}
         <div className="lg:col-span-8 space-y-6">

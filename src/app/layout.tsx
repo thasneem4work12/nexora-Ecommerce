@@ -28,6 +28,9 @@ export async function generateMetadata(): Promise<Metadata> {
 import { StoreTenantProvider } from "@/context/StoreTenantContext";
 import { DemoEnvironmentBanner } from "@/components/common/DemoEnvironmentBanner";
 
+import { TourProvider } from "@/components/guidance/TourContext";
+import { GuidedTour } from "@/components/guidance/GuidedTour";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -73,12 +76,15 @@ export default async function RootLayout({
           initialAppearance={appearance}
           initialBasePath=""
         >
-          <CartProvider>
-            <Header appearance={appearance} />
-            <main className="flex-1">{children}</main>
-            <Footer appearance={appearance} />
-            <CartDrawer />
-          </CartProvider>
+          <TourProvider>
+            <CartProvider>
+              <Header appearance={appearance} />
+              <main className="flex-1">{children}</main>
+              <Footer appearance={appearance} />
+              <CartDrawer />
+              <GuidedTour />
+            </CartProvider>
+          </TourProvider>
         </StoreTenantProvider>
       </body>
     </html>

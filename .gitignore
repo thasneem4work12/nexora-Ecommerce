@@ -47,3 +47,5 @@ next-env.d.ts
 # pid files
 *.pid
 
+
+local-pilot-passkey.txt

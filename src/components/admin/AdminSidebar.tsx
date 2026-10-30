@@ -27,6 +27,7 @@ import { signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import type { Role } from "@prisma/client";
 import { BusinessSwitcher } from "./BusinessSwitcher";
+import { HelpGuideModal } from "@/components/guidance/HelpGuideModal";
 
 interface AdminSidebarProps {
   user: {
@@ -140,7 +141,9 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         </div>
 
         {/* Multi-Tenant Business Switcher */}
-        <BusinessSwitcher />
+        <div data-tour="business-switcher">
+          <BusinessSwitcher />
+        </div>
 
         {/* Navigation Items */}
         <nav className="p-4 space-y-1.5">
@@ -150,11 +153,13 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
               : pathname.startsWith(item.href);
 
             const Icon = item.icon;
+            const tourAttr = item.href === "/admin/appearance" ? "appearance-link" : undefined;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour={tourAttr}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   "flex items-center space-x-3 px-3.5 py-2.5 text-xs tracking-wider uppercase transition-all duration-200 select-none",
@@ -172,7 +177,13 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       </div>
 
       {/* Footer Info & User Role */}
-      <div className="p-4 border-t border-charcoal-800 space-y-4">
+      <div className="p-4 border-t border-charcoal-800 space-y-3">
+        {/* Help & Interactive Guided Tours */}
+        <HelpGuideModal
+          role={user.role}
+          triggerClassName="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-canvas-secondary hover:text-bronze bg-charcoal-800/60 hover:bg-charcoal-800 border border-charcoal-700/50 rounded-btn transition-colors"
+        />
+
         {/* User Card */}
         <div className="p-3 bg-charcoal-800/60 border border-charcoal-700/50">
           <div className="flex items-center justify-between">
