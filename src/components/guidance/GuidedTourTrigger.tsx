@@ -3,7 +3,7 @@
 import React from "react";
 import { useTour } from "./TourContext";
 import { Button } from "@/components/ui/Button";
-import { Sparkles, HelpCircle } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 interface GuidedTourTriggerProps {
   tourId: string;

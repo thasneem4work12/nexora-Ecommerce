@@ -52,6 +52,11 @@ export function Header({ appearance: propAppearance }: HeaderProps) {
     }
   };
 
+  // Hide consumer storefront header in admin dashboard and platform control center
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/platform")) {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-40 w-full bg-canvas-primary/95 backdrop-blur-md border-b border-border-subtle transition-all">
       {/* Admin Preview Mode Banner */}

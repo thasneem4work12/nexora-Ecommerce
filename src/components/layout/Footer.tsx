@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ShieldCheck, Truck, RefreshCw } from "lucide-react";
 import { useStoreTenant } from "@/context/StoreTenantContext";
 import type { StoreAppearanceConfig } from "@/types/theme";
@@ -11,7 +12,13 @@ interface FooterProps {
 }
 
 export function Footer({ appearance: propAppearance }: FooterProps) {
+  const pathname = usePathname();
   const { business, appearance: tenantAppearance, basePath } = useStoreTenant();
+
+  // Hide consumer storefront footer in admin dashboard and platform control center
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/platform")) {
+    return null;
+  }
   const appearance = (basePath ? tenantAppearance : null) || propAppearance || tenantAppearance;
   const storeName = appearance?.storeName || business?.name || "NEXORA";
   const storeTagline = appearance?.storeTagline || "Haute Couture";

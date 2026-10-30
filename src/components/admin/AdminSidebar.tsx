@@ -128,8 +128,8 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
   const navContent = (
     <div className="flex flex-col h-full justify-between bg-charcoal-900 text-canvas-primary border-r border-charcoal-800 w-72">
       {/* Brand & Workspace Header */}
-      <div>
-        <div className="p-6 border-b border-charcoal-800">
+      <div className="flex flex-col min-h-0 flex-1">
+        <div className="p-6 border-b border-charcoal-800 shrink-0">
           <Link href="/admin" className="block group">
             <span className="text-xl font-serif tracking-[0.25em] text-canvas-primary uppercase transition-colors group-hover:text-bronze">
               NEXORA
@@ -141,12 +141,12 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
         </div>
 
         {/* Multi-Tenant Business Switcher */}
-        <div data-tour="business-switcher">
+        <div data-tour="business-switcher" className="shrink-0">
           <BusinessSwitcher />
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-4 space-y-1.5">
+        <nav className="p-4 space-y-1.5 overflow-y-auto flex-1">
           {navItems.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -177,7 +177,7 @@ export function AdminSidebar({ user }: AdminSidebarProps) {
       </div>
 
       {/* Footer Info & User Role */}
-      <div className="p-4 border-t border-charcoal-800 space-y-3">
+      <div className="p-4 border-t border-charcoal-800 space-y-3 shrink-0">
         {/* Help & Interactive Guided Tours */}
         <HelpGuideModal
           role={user.role}

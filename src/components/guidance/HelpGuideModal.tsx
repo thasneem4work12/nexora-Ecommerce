@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { useTour } from "./TourContext";
-import { TOURS, type TourDefinition } from "./tour-definitions";
+import { TOURS } from "./tour-definitions";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { HelpCircle, Play, CheckCircle2, Sparkles, BookOpen } from "lucide-react";
+import { HelpCircle, Play, CheckCircle2, Sparkles } from "lucide-react";
 
 interface HelpGuideModalProps {
   role?: string;

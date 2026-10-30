@@ -3,8 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { formatPrice } from "@/lib/utils";
-import { Badge } from "@/components/ui/Badge";
-import { Sparkles, Eye, Info, Layers, Check } from "lucide-react";
+import { Eye, Info } from "lucide-react";
 import type { ThemeId } from "@/types/theme";
 
 interface ProductLiveCardPreviewProps {
